@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+yarn-error.log
+package-lock.json
+
+# Build output
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+*.tmp
+.cache/
+
+# Build scripts (temporary)
+create_components.sh
+build_remaining_components.sh

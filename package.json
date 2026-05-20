@@ -1,0 +1,31 @@
+{
+  "name": "smart-job-auto-apply-assistant",
+  "version": "1.0.0",
+  "description": "Advanced personal job application automation Chrome Extension for LinkedIn, Indeed, and Naukri",
+  "main": "background.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node post-build.js",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "chrome-extension",
+    "job-application",
+    "automation",
+    "linkedin",
+    "indeed",
+    "naukri"
+  ],
+  "author": "Smart Job Auto Apply",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "vite": "^8.0.13",
+    "webextension-polyfill": "^0.12.0"
+  }
+}
