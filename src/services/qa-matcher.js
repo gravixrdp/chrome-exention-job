@@ -84,17 +84,45 @@ export function findSimilarQA(qaBank, questionText, minScore = 0.4) {
 
 /**
  * AI semantic similarity fallback.
- * Asks OpenRouter AI to compare two questions and return similarity 0-100.
+ * Asks AI provider to compare two questions and return similarity 0-100.
+ * Tries excloud first if configured, falls back to OpenRouter, then null.
  * Returns similarity score or null on error.
  */
 export async function getSemanticSimilarity(questionA, questionB, aiConfig) {
-  if (!aiConfig?.apiKey) return null;
+  // Try providers in order: excloud → openrouter
+  const providers = [];
+  if (aiConfig?.excloudApiKey) providers.push('excloud');
+  if (aiConfig?.apiKey) providers.push('openrouter');
+  if (!providers.length) return null;
 
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  for (const providerId of providers) {
+    try {
+      const score = await getProviderSimilarity(providerId, questionA, questionB, aiConfig);
+      if (score !== null) return score;
+    } catch (error) {
+      console.warn(`AI similarity ${providerId} failed:`, error);
+      // Try next provider
+    }
+  }
+  return null;
+}
+
+function getProviderSimilarity(providerId, questionA, questionB, aiConfig) {
+  const isExcloud = providerId === 'excloud';
+  const apiKey = isExcloud ? aiConfig.excloudApiKey : aiConfig.apiKey;
+
+  if (isExcloud) {
+    return getExcloudSimilarity(questionA, questionB, apiKey);
+  }
+  return getOpenRouterSimilarity(questionA, questionB, apiKey);
+}
+
+function getOpenRouterSimilarity(questionA, questionB, apiKey) {
+  return new Promise((resolve, reject) => {
+    fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${aiConfig.apiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': chrome.runtime.getURL('popup/popup.html')
       },
@@ -112,15 +140,55 @@ export async function getSemanticSimilarity(questionA, questionB, aiConfig) {
         ],
         max_tokens: 5
       })
-    });
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content || '';
-    const parsed = parseFloat(text);
-    return isNaN(parsed) ? null : parsed;
-  } catch (error) {
-    console.warn('AI semantic similarity failed:', error);
-    return null;
+    })
+      .then(res => res.json())
+      .then(data => {
+        const text = data?.choices?.[0]?.message?.content || '';
+        const parsed = parseFloat(text);
+        resolve(isNaN(parsed) ? null : parsed);
+      })
+      .catch(reject);
+  });
+}
+
+function getExcloudSimilarity(questionA, questionB, apiKey) {
+  return new Promise((resolve, reject) => {
+    fetch('https://llm.excloud.dev/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'Qwen/Qwen3.6-27B:excloud',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a semantic similarity checker. Given two job application questions, output only a number between 0 and 100 representing how similar they are in meaning. Output only the number, nothing else.'
+          },
+          {
+            role: 'user',
+            content: `Question A: "${questionA}"\nQuestion B: "${questionB}"\nSimilarity score (0-100):`
+          }
+        ],
+        max_tokens: 5
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        const text = extractAnthropicText(data);
+        const parsed = parseFloat(text);
+        resolve(isNaN(parsed) ? null : parsed);
+      })
+      .catch(reject);
+  });
+}
+
+function extractAnthropicText(data) {
+  for (const content of (data.content || [])) {
+    if (content.type === 'text') return content.text;
   }
+  return '';
 }
 
 /**

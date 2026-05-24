@@ -142,7 +142,7 @@ export async function saveAIConfig(config) {
 
 export async function getAIConfig() {
   const { aiConfig } = await chrome.storage.local.get(['aiConfig']);
-  return aiConfig || { enabled: false, apiKey: '' };
+  return aiConfig || { enabled: false, apiKey: '', excloudApiKey: '' };
 }
 
 // --- Discovery Config ---

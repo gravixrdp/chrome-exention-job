@@ -75,8 +75,8 @@ export default function Settings() {
   }
 
   async function handleSaveAI() {
-    await saveAIConfig({ enabled: true, apiKey });
-    alert('OpenRouter API key saved!');
+    await saveAIConfig({ enabled: true, apiKey, excloudApiKey: aiConfig?.excloudApiKey || '' });
+    alert('AI keys saved!');
     loadSettings();
   }
 
@@ -400,25 +400,51 @@ export default function Settings() {
       {/* AI Helper */}
       <div style={{ background: 'white', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
         <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>AI Helper</h3>
+        <p style={{ fontSize: '11px', color: '#666', marginBottom: '12px' }}>
+          Extension tries Excloud first, then falls back to OpenRouter. Add both for maximum reliability.
+        </p>
 
-        {aiConfig.enabled && aiConfig.apiKey ? (
-          <div className="alert alert-success" style={{ fontSize: '13px' }}>
-            ✅ OpenRouter API key configured
-          </div>
-        ) : (
-          <div>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter OpenRouter API key"
-              style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', marginBottom: '8px' }}
-            />
-            <button onClick={handleSaveAI} style={{ width: '100%', padding: '10px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
-              Save API Key
-            </button>
-          </div>
-        )}
+        {/* Excloud */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', display: 'block' }}>
+            Excloud API
+          </label>
+          <input
+            type="password"
+            value={aiConfig?.excloudApiKey || ''}
+            onChange={(e) => setAiConfig({ ...aiConfig, enabled: true, excloudApiKey: e.target.value })}
+            placeholder="sxkHkNBFWOnRPTU9oFcFZ..."
+            style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', marginBottom: '8px' }}
+          />
+          {aiConfig?.excloudApiKey && (
+            <div className="alert alert-success" style={{ fontSize: '12px' }}>
+              ✅ Excloud configured
+            </div>
+          )}
+        </div>
+
+        {/* OpenRouter */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', display: 'block' }}>
+            OpenRouter API (Fallback)
+          </label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Enter OpenRouter API key"
+            style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', marginBottom: '8px' }}
+          />
+          {aiConfig?.enabled && aiConfig.apiKey && (
+            <div className="alert alert-success" style={{ fontSize: '12px' }}>
+              ✅ OpenRouter configured
+            </div>
+          )}
+        </div>
+
+        <button onClick={handleSaveAI} style={{ width: '100%', padding: '10px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
+          💾 Save AI Keys
+        </button>
       </div>
 
       {/* Scraping Providers */}

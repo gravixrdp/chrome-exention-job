@@ -54,6 +54,8 @@ A **Chrome Extension (Manifest V3)** that automates the job application workflow
 │       ├── storage.js       # CRUD over chrome.storage.local
 │       ├── sheets.js        # Google Sheets OAuth, sync, duplicate check
 │       ├── ai.js           # OpenRouter AI — cover letter, summary, skills
+│       ├── ai-providers.js  # AI provider registry — OpenRouter & Excloud
+│       ├── qa-matcher.js    # Similarity matching — keyword overlap + AI semantic fallback
 │       ├── providers.js     # Scraping provider config constants
 │       ├── scraping.js      # Multi-provider scraping with fallback
 │       ├── hiring-post.js   # Hiring post detection — email extraction, post classification
