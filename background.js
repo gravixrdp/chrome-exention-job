@@ -73,6 +73,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'saveHiringPost') {
     saveHiringPost(request.data).then(sendResponse);
     return true;
+  } else if (request.action === 'scrollComplete') {
+    handleScrollComplete(request.data);
+    return false;
+  } else if (request.action === 'startAutoPipeline') {
+    startAutoPipeline().then(sendResponse);
+    return true;
   } else if (request.action === 'promptQuestion') {
     // Show question prompt in the active tab via scripting API
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
@@ -515,4 +521,288 @@ async function startDiscovery() {
     console.error('Discovery error:', error);
     return { success: false, error: error.message };
   }
+}
+
+// --- Auto-Apply Pipeline ---
+
+// Track active pipeline state
+let pipelineState = {
+  running: false,
+  tabId: null,
+  jobs: [],
+  index: 0,
+  applied: 0,
+  skipped: 0,
+  error: 0
+};
+
+// Handle scrollComplete message from auto-scroll content script
+async function handleScrollComplete(data) {
+  // Only act if pipeline is running
+  if (!pipelineState.running) return;
+
+  const allJobs = data.jobs || [];
+  // Load existing applications to avoid duplicates
+  const { applications = [] } = await chrome.storage.local.get(['applications']);
+  const appliedUrls = new Set(applications.map(a => a.jobUrl));
+
+  // Filter: skip already-applied, keep only new jobs
+  const newJobs = allJobs.filter(j => !appliedUrls.has(j.jobUrl));
+  pipelineState.jobs = newJobs;
+  pipelineState.index = 0;
+  pipelineState.applied = 0;
+  pipelineState.skipped = 0;
+  pipelineState.error = 0;
+
+  if (newJobs.length === 0) {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'assets/icons/icon128.png',
+      title: 'Auto Apply Complete',
+      message: 'All jobs already applied — nothing new to process',
+      priority: 1
+    });
+    resetPipeline();
+    return;
+  }
+
+  // Start processing jobs one by one
+  processNextJob();
+}
+
+// Process jobs sequentially
+async function processNextJob() {
+  if (!pipelineState.running || pipelineState.index >= pipelineState.jobs.length) {
+    // Done — notify user
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'assets/icons/icon128.png',
+      title: 'Auto Apply Complete',
+      message: `Applied: ${pipelineState.applied}  |  Skipped: ${pipelineState.skipped}  |  Errors: ${pipelineState.error}`,
+      priority: 2
+    });
+    resetPipeline();
+    return;
+  }
+
+  const { autoApplyConfig } = await chrome.storage.local.get(['autoApplyConfig']);
+  const delaySec = (autoApplyConfig?.delayBetweenJobs || 10);
+
+  const job = pipelineState.jobs[pipelineState.index];
+
+  // Open job detail page in a new tab
+  chrome.tabs.create({ url: job.jobUrl }, async (tab) => {
+    // Wait for page to load (up to 15s)
+    await waitForTabComplete(tab.id, 15000);
+
+    // Extract job data from the detail page
+    const [{ result: jobData }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractJobInfo,
+    });
+
+    if (!jobData) {
+      pipelineState.error++;
+      pipelineState.index++;
+      chrome.tabs.remove(tab.id);
+      setTimeout(() => processNextJob(), delaySec * 1000);
+      return;
+    }
+
+    // Calculate match score
+    const { calculateMatchScore } = await import('./src/services/matcher.js');
+    const { profile, filters } = await chrome.storage.local.get(['profile', 'filters']);
+    const matchResult = calculateMatchScore(jobData, profile, filters);
+
+    const minScore = autoApplyConfig?.minMatchScore || 60;
+
+    if (matchResult.score < minScore) {
+      pipelineState.skipped++;
+      pipelineState.index++;
+      chrome.tabs.remove(tab.id);
+      setTimeout(() => processNextJob(), delaySec * 1000);
+      return;
+    }
+
+    // Check for duplicate
+    const { applications = [] } = await chrome.storage.local.get(['applications']);
+    const urlMatch = applications.find(a => a.jobUrl === jobData.jobUrl);
+    if (urlMatch) {
+      pipelineState.skipped++;
+      pipelineState.index++;
+      chrome.tabs.remove(tab.id);
+      setTimeout(() => processNextJob(), delaySec * 1000);
+      return;
+    }
+
+    // Save application
+    const appData = {
+      platform: job.platform || 'LinkedIn',
+      title: jobData.title,
+      company: jobData.company,
+      location: jobData.location || '',
+      jobUrl: jobData.jobUrl,
+      matchScore: matchResult.score,
+      status: 'Applied',
+      description: jobData.description || '',
+      resumeUsed: '',
+      notes: `Auto-applied (score: ${matchResult.score})`
+    };
+
+    const result = await saveApplication(appData);
+
+    if (result.success) {
+      pipelineState.applied++;
+    } else {
+      pipelineState.error++;
+    }
+
+    pipelineState.index++;
+
+    // Close tab if configured, otherwise leave it open
+    const closeTab = autoApplyConfig?.closeTabAfterApply;
+    if (closeTab) {
+      chrome.tabs.remove(tab.id);
+    }
+
+    setTimeout(() => processNextJob(), delaySec * 1000);
+  });
+}
+
+// Helper: wait for tab to finish loading
+function waitForTabComplete(tabId, timeoutMs) {
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+
+    const checkLoaded = () => {
+      chrome.tabs.get(tabId, (tab) => {
+        if (tab?.status === 'complete') {
+          resolve();
+        } else if (Date.now() - startTime > timeoutMs) {
+          resolve(); // Timeout — proceed anyway
+        } else {
+          setTimeout(checkLoaded, 500);
+        }
+      });
+    };
+    checkLoaded();
+  });
+}
+
+// Helper: extract job info from a detail page (runs in content script context)
+function extractJobInfo() {
+  try {
+    // LinkedIn
+    if (window.location.href.includes('linkedin.com/jobs/view/')) {
+      const titleEl = document.querySelector('.top-card-layout__title, h1.top-card-layout__title');
+      const companyEl = document.querySelector('.top-card-layout__subtitle span a');
+      const locationEl = document.querySelector('.job-details-job-insights__flex-list > div > div > span');
+      const description = document.querySelector('div.description, .jobs-description__job-description-text');
+      return {
+        title: titleEl?.textContent?.trim() || 'Unknown',
+        company: companyEl?.textContent?.trim() || 'Unknown',
+        location: locationEl?.textContent?.trim() || '',
+        description: description?.textContent?.trim() || '',
+        jobUrl: window.location.href
+      };
+    }
+    // Indeed
+    if (window.location.href.includes('indeed.com/jobs/')) {
+      const titleEl = document.querySelector('#jobDetailsHeader h2 span.jobTitleContainer__title');
+      const companyEl = document.querySelector('#jobDetailsHeader span.jobTitleCompany-link');
+      const locationEl = document.querySelector('#jobDetailsHeader span.jobTitleLocation');
+      const description = document.querySelector('#jobDescriptionText, .jobDescriptionScrollbar');
+      return {
+        title: titleEl?.textContent?.trim() || 'Unknown',
+        company: companyEl?.textContent?.trim() || 'Unknown',
+        location: locationEl?.textContent?.trim() || '',
+        description: description?.textContent?.trim() || '',
+        jobUrl: window.location.href
+      };
+    }
+    // Naukri
+    if (window.location.href.includes('naukri.com')) {
+      const titleEl = document.querySelector('#job_title__1, .jobDetailTitle');
+      const companyEl = document.querySelector('#com_name__1, .companyName');
+      const locationEl = document.querySelector('#location__1');
+      const description = document.querySelector('#job_description, .jobDescription');
+      return {
+        title: titleEl?.textContent?.trim() || 'Unknown',
+        company: companyEl?.textContent?.trim() || 'Unknown',
+        location: locationEl?.textContent?.trim() || '',
+        description: description?.textContent?.trim() || '',
+        jobUrl: window.location.href
+      };
+    }
+    return null;
+  } catch (e) {
+    console.error('Error extracting job info:', e);
+    return null;
+  }
+}
+
+function resetPipeline() {
+  pipelineState = {
+    running: false,
+    tabId: null,
+    jobs: [],
+    index: 0,
+    applied: 0,
+    skipped: 0,
+    error: 0
+  };
+}
+
+// Build search URL for a platform
+function buildSearchUrl(platform, profile) {
+  const keywords = profile.skills?.join(' ') || profile.preferredRoles || 'developer';
+  const location = profile.preferredLocation || '';
+  const encodedKeywords = encodeURIComponent(keywords);
+  const encodedLocation = encodeURIComponent(location);
+
+  switch (platform) {
+    case 'LinkedIn':
+      return `https://www.linkedin.com/jobs/search/?keywords=${encodedKeywords}${location ? '&location=' + encodedLocation : ''}`;
+    case 'Indeed':
+      return `https://www.indeed.com/jobs?what=${encodedKeywords}${location ? '&where=' + encodedLocation : ''}`;
+    case 'Naukri':
+      return `https://www.naukri.com/jobs/${encodedKeywords.replace(/\+/g, '-').toLowerCase()}`;
+    default:
+      return `https://www.linkedin.com/jobs/search/?keywords=${encodedKeywords}`;
+  }
+}
+
+// Start auto-apply pipeline
+async function startAutoPipeline() {
+  const { autoApplyConfig } = await chrome.storage.local.get(['autoApplyConfig']);
+  const { profile } = await chrome.storage.local.get(['profile']);
+
+  if (!profile) {
+    return { success: false, error: 'Profile not set up' };
+  }
+
+  const platform = autoApplyConfig?.platform || 'LinkedIn';
+  const searchUrl = buildSearchUrl(platform, profile);
+
+  // Reset state
+  resetPipeline();
+  pipelineState.running = true;
+
+  // Open search tab
+  const tab = await new Promise((resolve) => {
+    chrome.tabs.create({ url: searchUrl }, resolve);
+  });
+  pipelineState.tabId = tab.id;
+
+  // Wait for tab to load
+  await waitForTabComplete(tab.id, 10000);
+
+  // Start auto-scroll in the search tab
+  await new Promise((resolve) => {
+    chrome.tabs.sendMessage(tab.id, { action: 'startScroll' }, resolve);
+  });
+
+  // scrollComplete message will trigger processNextJob via handleScrollComplete
+  // Return early — pipeline runs async
+  return { success: true, message: `Opened ${platform} search. Auto-applying to jobs...` };
 }

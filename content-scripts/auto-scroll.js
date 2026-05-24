@@ -157,6 +157,11 @@ function stopScroll() {
   clearInterval(scrollCounter);
   notifyComplete();
   saveToSession();
+  // Notify background that scrolling is done (used by auto-apply pipeline)
+  chrome.runtime.sendMessage({
+    action: 'scrollComplete',
+    data: { jobs: detectedJobs, totalJobs: detectedJobs.length }
+  });
 }
 
 function updateBadge() {
@@ -186,7 +191,7 @@ function notifyComplete() {
   }
 }
 
-// Listen for messages from popup
+// Listen for messages from popup / background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startScroll') {
     startAutoScroll();
@@ -195,6 +200,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ jobs: detectedJobs });
   } else if (request.action === 'stopScroll') {
     stopScroll();
+    sendResponse({ success: true });
+  } else if (request.action === 'openJob') {
+    // Background asks content script to open a job URL in the same tab
+    if (request.url) {
+      window.location.href = request.url;
+    }
     sendResponse({ success: true });
   }
   return false;

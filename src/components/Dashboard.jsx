@@ -68,10 +68,23 @@ export default function Dashboard({ onNavigate }) {
         alert(`Discovery complete! Found ${result.totalFound} jobs, ${result.newJobs} new.`);
       }
       loadData();
-    } catch (error) {
-      alert('Discovery failed: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleAutoApply() {
+    try {
+      const result = await chrome.runtime.sendMessage({
+        action: 'startAutoPipeline'
+      });
+      if (result?.success) {
+        alert(result.message || 'Auto apply started! The extension will now open LinkedIn, search for jobs, scroll through results, and save matching jobs.');
+      } else {
+        alert(result?.error || 'Auto apply failed. Check Settings for configuration.');
+      }
+    } catch (error) {
+      alert('Error starting auto apply: ' + error.message);
     }
   }
 
@@ -180,6 +193,16 @@ export default function Dashboard({ onNavigate }) {
             }}
           >
             📝 Tracker
+          </button>
+          <button
+            onClick={handleAutoApply}
+            style={{
+              flex: '2 1', background: '#000', color: 'white',
+              padding: '12px', borderRadius: '8px', fontSize: '13px',
+              fontWeight: '600', border: 'none'
+            }}
+          >
+            Auto Apply
           </button>
         </div>
       </div>

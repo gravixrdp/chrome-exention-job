@@ -21,8 +21,10 @@ export default defineConfig({
         chunkFileNames: 'chunks/[name].[hash].js',
         assetFileNames: 'assets/[name][extname]',
         manualChunks: (id) => {
-          if (id.includes('src/')) return 'vendor';
-          return 'vendor';
+          // Only chunk node_modules into vendor. src/ stays inline
+          // so background.js and content-scripts are self-contained.
+          if (id.includes('node_modules')) return 'vendor';
+          return undefined;
         }
       },
       preserveEntrySignatures: 'strict'

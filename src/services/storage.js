@@ -161,6 +161,26 @@ export async function getDiscoveryConfig() {
   };
 }
 
+// --- Auto Apply Pipeline Config ---
+
+export async function saveAutoApplyConfig(config) {
+  await chrome.storage.local.set({ autoApplyConfig: config });
+  return config;
+}
+
+export async function getAutoApplyConfig() {
+  const { autoApplyConfig } = await chrome.storage.local.get(['autoApplyConfig']);
+  return autoApplyConfig || {
+    enabled: false,
+    platform: 'LinkedIn', // 'LinkedIn' | 'Indeed' | 'Naukri'
+    jobsPerSession: 10,
+    minMatchScore: 60,
+    delayBetweenJobs: 10, // seconds
+    autoOpenTab: true,
+    closeTabAfterApply: false
+  };
+}
+
 // --- Scroll Detected Jobs ---
 
 export async function getScrollDetectedJobs() {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings, saveSettings, getGoogleSheetsConfig, saveGoogleSheetsConfig, getAIConfig, saveAIConfig, getDiscoveryConfig, saveDiscoveryConfig, getSheetsConfig, saveSheetsConfig } from '../services/storage';
+import { getSettings, saveSettings, getGoogleSheetsConfig, saveGoogleSheetsConfig, getAIConfig, saveAIConfig, getDiscoveryConfig, saveDiscoveryConfig, getSheetsConfig, saveSheetsConfig, getAutoApplyConfig, saveAutoApplyConfig } from '../services/storage';
 import { connectGoogleSheets, disconnectGoogleSheets, getGoogleSheetsStatus } from '../services/sheets';
 import { changePassword } from '../services/auth';
 import { initProviders, saveProviders, getProviders, testConnection } from '../services/scraping';
@@ -10,6 +10,7 @@ export default function Settings() {
   const [googleSheets, setGoogleSheets] = useState(null);
   const [aiConfig, setAiConfig] = useState(null);
   const [discoveryConfig, setDiscoveryConfig] = useState(null);
+  const [autoApplyConfig, setAutoApplyConfig] = useState(null);
   const [scrapingProviders, setScrapingProviders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [spreadsheetId, setSpreadsheetId] = useState('');
@@ -35,10 +36,12 @@ export default function Settings() {
     const d = await getDiscoveryConfig();
     const sp = await initProviders();
     const sc = await getSheetsConfig();
+    const aa = await getAutoApplyConfig();
     setSettings(s);
     setGoogleSheets(g);
     setAiConfig(a);
     setDiscoveryConfig(d);
+    setAutoApplyConfig(aa);
     setScrapingProviders(sp);
     setSheetsConfig(sc);
     if (sc) setSheetsAuth(sc.authMethod || 'oauth');
@@ -53,6 +56,11 @@ export default function Settings() {
   async function handleSaveDiscovery() {
     await saveDiscoveryConfig(discoveryConfig);
     alert('Discovery settings saved!');
+  }
+
+  async function handleSaveAutoApply() {
+    await saveAutoApplyConfig(autoApplyConfig);
+    alert('Auto-apply settings saved!');
   }
 
   async function handleConnectSheets() {
@@ -672,6 +680,106 @@ export default function Settings() {
           style={{ width: '100%', padding: '10px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
         >
           Save Discovery Settings
+        </button>
+      </div>
+
+      {/* Auto Apply Pipeline */}
+      <div style={{ background: 'white', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Auto Apply Pipeline</h3>
+        <p style={{ fontSize: '11px', color: '#666', marginBottom: '12px' }}>
+          Extension will automatically open LinkedIn, search for jobs based on your profile, scroll through results, and save matching jobs as applied.
+        </p>
+
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+            <input
+              type="checkbox"
+              checked={autoApplyConfig?.enabled || false}
+              onChange={(e) => setAutoApplyConfig({ ...autoApplyConfig, enabled: e.target.checked })}
+            />
+            Enable auto-apply
+          </label>
+        </div>
+
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px', display: 'block' }}>Platform</label>
+          <select
+            value={autoApplyConfig?.platform || 'LinkedIn'}
+            onChange={(e) => setAutoApplyConfig({ ...autoApplyConfig, platform: e.target.value })}
+            style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
+          >
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="Indeed">Indeed</option>
+            <option value="Naukri">Naukri</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px', display: 'block' }}>
+            Jobs per session
+          </label>
+          <select
+            value={autoApplyConfig?.jobsPerSession || 10}
+            onChange={(e) => setAutoApplyConfig({ ...autoApplyConfig, jobsPerSession: parseInt(e.target.value) })}
+            style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
+          >
+            <option value={5}>5 jobs</option>
+            <option value={10}>10 jobs</option>
+            <option value={20}>20 jobs</option>
+            <option value={50}>50 jobs</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px', display: 'block' }}>
+            Min match score ({autoApplyConfig?.minMatchScore || 60}%)
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={autoApplyConfig?.minMatchScore || 60}
+            onChange={(e) => setAutoApplyConfig({ ...autoApplyConfig, minMatchScore: parseInt(e.target.value) })}
+            style={{ width: '100%' }}
+          />
+          <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+            Jobs scoring below {autoApplyConfig?.minMatchScore || 60}% will be skipped
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px', display: 'block' }}>
+            Delay between jobs ({autoApplyConfig?.delayBetweenJobs || 10}s)
+          </label>
+          <select
+            value={autoApplyConfig?.delayBetweenJobs || 10}
+            onChange={(e) => setAutoApplyConfig({ ...autoApplyConfig, delayBetweenJobs: parseInt(e.target.value) })}
+            style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
+          >
+            <option value={5}>5 seconds (fast)</option>
+            <option value={10}>10 seconds (normal)</option>
+            <option value={15}>15 seconds (safe)</option>
+            <option value={30}>30 seconds (slow)</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+            <input
+              type="checkbox"
+              checked={autoApplyConfig?.closeTabAfterApply || false}
+              onChange={(e) => setAutoApplyConfig({ ...autoApplyConfig, closeTabAfterApply: e.target.checked })}
+            />
+            Close tab after applying
+          </label>
+        </div>
+
+        <button
+          onClick={handleSaveAutoApply}
+          style={{ width: '100%', padding: '10px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
+        >
+          Save Auto Apply Settings
         </button>
       </div>
 
