@@ -112,8 +112,7 @@ export default function Settings() {
               ? 'mistralai/mistral-7b-instruct:free'
               : 'Qwen/Qwen3.6-27B:excloud',
             messages: [
-              { role: 'system', content: 'Reply to this test message with a short greeting.' },
-              { role: 'user', content: 'hy' }
+              { role: 'user', content: providerId === 'openrouter' ? 'Reply to this test message with a short greeting.' : 'hy' }
             ],
             max_tokens: 30
           })
