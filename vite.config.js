@@ -14,6 +14,7 @@ export default defineConfig({
         indeed: resolve(__dirname, 'content-scripts/indeed.js'),
         naukri: resolve(__dirname, 'content-scripts/naukri.js'),
         autoscroll: resolve(__dirname, 'content-scripts/auto-scroll.js'),
+        hiringpost: resolve(__dirname, 'content-scripts/hiring-post.js'),
       },
       output: {
         entryFileNames: '[name].js',

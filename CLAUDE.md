@@ -30,6 +30,7 @@ A **Chrome Extension (Manifest V3)** that automates the job application workflow
 │   ├── indeed.js            # Indeed job detection (delegates to content-base)
 │   ├── naukri.js            # Naukri job detection (delegates to content-base)
 │   └── auto-scroll.js       # Auto-scroll on search result pages
+│   └── hiring-post.js       # LinkedIn hiring post detector
 ├── src/
 │   ├── popup.jsx            # React entry point — createRoot → <App />
 │   ├── popup.css            # Global styles
@@ -54,6 +55,7 @@ A **Chrome Extension (Manifest V3)** that automates the job application workflow
 │       ├── ai.js           # OpenRouter AI — cover letter, summary, skills
 │       ├── providers.js     # Scraping provider config constants
 │       ├── scraping.js      # Multi-provider scraping with fallback
+│       ├── hiring-post.js   # Hiring post detection — email extraction, post classification
 │       └── discovery.js     # Auto job discovery engine
 ├── assets/icons/          # Extension icons (16, 48, 128)
 ├── vite.config.js         # Vite build config
@@ -114,6 +116,7 @@ calculateMatchScore(job, profile, filters):
 | `chrome.tabs.sendMessage` | Popup → Content Script | `autofillForm`, `getCurrentJob`, `startScroll`, `stopScroll` |
 | `chrome.storage.local` | Persistent | Profile, resumes, Q&A, applications, settings, filters, scraping providers |
 | `chrome.storage.session` | Session-only | Lock state, current job, scroll detected jobs, discovery results |
+| `chrome.runtime.sendMessage` | Content ↔ Background | `saveHiringPost` for hiring post data |
 
 ## Required Configuration
 
@@ -122,6 +125,7 @@ calculateMatchScore(job, profile, filters):
 3. **OpenRouter AI (optional)** — API key in Settings
 4. **Scraping Providers** — Add API keys for Firecrawl, ScrapingBee, etc. in Settings
 5. **Auto Discovery** — Enable and set interval (on-demand / 30 min / 2 hours / 6 hours)
+6. **Hiring Post Detection** — Enabled on LinkedIn feed/post pages
 
 ## Build Commands
 
@@ -138,3 +142,17 @@ yarn build          # Build to /dist (vite build + post-build.js)
 - Scraping API requires external provider (configurable, user provides API key)
 - All data in `chrome.storage.local` — no cross-device sync
 - No tests
+
+### 6. LinkedIn Hiring Post Detection
+```
+User visits LinkedIn feed or post page
+  -> hiring-post.js content script loaded
+  -> MutationObserver + 5s interval scans articles
+  -> isHiringPost() matches against HIRING_KEYWORDS
+  -> extractPostData() gets author, company, emails, location, jobTitle
+  -> highlightPost() adds green border + badge
+  -> followAuthor() clicks Follow/Connect button
+  -> saveToSheets() saves to Google Sheets "HiringPosts" tab
+  -> Status badge shows count: "X hiring post(s) found · Y email(s)"
+```
+

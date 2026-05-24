@@ -56,7 +56,8 @@ for (const [srcName, destName] of [
   ['linkedin', 'linkedin'],
   ['indeed', 'indeed'],
   ['naukri', 'naukri'],
-  ['autoscroll', 'auto-scroll']
+  ['autoscroll', 'auto-scroll'],
+  ['hiringpost', 'hiring-post']
 ]) {
   const srcFile = path.join(distDir, `${srcName}.js`);
   const destFile = path.join(contentScriptsDir, `${destName}.js`);

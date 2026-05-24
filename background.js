@@ -67,6 +67,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'startDiscovery') {
     startDiscovery().then(sendResponse);
     return true;
+  } else if (request.action === 'saveHiringPost') {
+    saveHiringPost(request.data).then(sendResponse);
+    return true;
   } else if (request.action === 'promptQuestion') {
     // Show question prompt in the active tab via scripting API
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
@@ -262,6 +265,76 @@ async function revokeGoogleAuthToken() {
   } catch (error) {
     return { success: false, error: error.message };
   }
+}
+
+// Save hiring post to storage + Google Sheets
+async function saveHiringPost(postData) {
+  try {
+    const { hiringPosts = [] } = await chrome.storage.local.get(['hiringPosts']);
+
+    const newPost = {
+      id: Date.now().toString(),
+      ...postData
+    };
+
+    hiringPosts.push(newPost);
+    await chrome.storage.local.set({ hiringPosts });
+
+    // Sync to Google Sheets "HiringPosts" tab (non-blocking)
+    syncHiringPostToSheets(newPost).catch(err => {
+      console.error('Failed to sync hiring post to sheets:', err);
+    });
+
+    return { success: true, post: newPost };
+  } catch (error) {
+    console.error('Error saving hiring post:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Sync hiring post to Google Sheets
+async function syncHiringPostToSheets(postData) {
+  const { googleSheets } = await chrome.storage.local.get(['googleSheets']);
+  if (!googleSheets?.spreadsheetId) {
+    throw new Error('Google Sheets not configured');
+  }
+
+  const tokenResponse = await getGoogleAuthToken();
+  if (!tokenResponse.success) {
+    throw new Error('Failed to get auth token');
+  }
+
+  const values = [[
+    postData.timestamp || new Date().toISOString(),
+    'LinkedIn',
+    postData.author || '',
+    postData.company || '',
+    (postData.emails && postData.emails.join(', ')) || '',
+    postData.location || '',
+    postData.jobTitle || '',
+    postData.postUrl || '',
+    postData.followSent ? 'Yes' : 'No',
+    postData.postText || ''
+  ]];
+
+  const sheetName = 'HiringPosts';
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${googleSheets.spreadsheetId}/values/${sheetName}!A1:J:append?valueInputOption=RAW&majorDimension=ROWS`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenResponse.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Google Sheets API error: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.json();
 }
 
 // Sync to Google Sheets

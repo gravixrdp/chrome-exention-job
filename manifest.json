@@ -65,6 +65,16 @@
       "matches": ["https://www.naukri.com/jobs*"],
       "js": ["content-scripts/auto-scroll.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.linkedin.com/feed*",
+        "https://www.linkedin.com/feed/update/*",
+        "https://www.linkedin.com/posts-*",
+        "https://www.linkedin.com/in/*"
+      ],
+      "js": ["content-scripts/hiring-post.js"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {
