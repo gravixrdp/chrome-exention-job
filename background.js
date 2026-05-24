@@ -806,3 +806,37 @@ async function startAutoPipeline() {
   // Return early — pipeline runs async
   return { success: true, message: `Opened ${platform} search. Auto-applying to jobs...` };
 }
+
+// --- Auto-Trigger: Start pipeline when job search page loads ---
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete' || !tab.url) return;
+
+  const { autoApplyConfig } = await chrome.storage.local.get(['autoApplyConfig']);
+
+  // Auto-trigger pipeline when a job search page is opened
+  if (
+    autoApplyConfig?.enabled &&
+    autoApplyConfig.platform &&
+    !pipelineState.running &&
+    isJobSearchUrl(tab.url, autoApplyConfig.platform)
+  ) {
+    // Small delay to let content script load
+    setTimeout(() => {
+      chrome.tabs.sendMessage(tabId, { action: 'startScroll' }).catch(() => {});
+    }, 2000);
+  }
+});
+
+function isJobSearchUrl(url, platform) {
+  switch (platform) {
+    case 'LinkedIn':
+      return url.includes('linkedin.com/jobs/search');
+    case 'Indeed':
+      return url.includes('indeed.com/jobs');
+    case 'Naukri':
+      return url.includes('naukri.com/jobs');
+    default:
+      return false;
+  }
+}
