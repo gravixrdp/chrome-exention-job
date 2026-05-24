@@ -1,9 +1,22 @@
 // Authentication and Password Management Service
 
-// Simple hash function for password (using SubtleCrypto)
+const SALT_KEY = 'SJAAS_SALT_V1';
+
+async function getSalt() {
+  const { salt } = await chrome.storage.local.get(['salt']);
+  if (salt) return salt;
+  // Generate a random salt and persist it
+  const array = new Uint32Array(8);
+  crypto.getRandomValues(array);
+  const newSalt = Array.from(array, b => b.toString(36).padStart(8, '0')).join('');
+  await chrome.storage.local.set({ salt: newSalt });
+  return newSalt;
+}
+
 async function hashPassword(password) {
+  const salt = await getSalt();
   const encoder = new TextEncoder();
-  const data = encoder.encode(password);
+  const data = encoder.encode(SALT_KEY + salt + password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -22,10 +35,9 @@ export async function setupPassword(password) {
 export async function verifyPassword(password) {
   const { passwordHash } = await chrome.storage.local.get(['passwordHash']);
   const hashedInput = await hashPassword(password);
-  
+
   if (hashedInput === passwordHash) {
     await chrome.storage.session.set({ locked: false });
-    // Reset inactivity timer
     chrome.runtime.sendMessage({ action: 'resetInactivityTimer' });
     return true;
   }
@@ -37,7 +49,6 @@ export async function changePassword(currentPassword, newPassword) {
   if (!isValid) {
     throw new Error('Current password is incorrect');
   }
-  
   const hashedPassword = await hashPassword(newPassword);
   await chrome.storage.local.set({ passwordHash: hashedPassword });
   return true;
@@ -50,7 +61,7 @@ export async function isPasswordSetup() {
 
 export async function isLocked() {
   const { locked } = await chrome.storage.session.get(['locked']);
-  return locked !== false; // Default to locked
+  return locked !== false;
 }
 
 export async function lockApp() {

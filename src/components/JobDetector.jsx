@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getProfile, getResumes, getQABank, getFilters } from '../services/storage';
+import { getProfile, getResumes, getQABank, getFilters, getAIConfig } from '../services/storage';
 import { calculateMatchScore, selectBestResume } from '../services/matcher';
 import { checkDuplicateInSheets } from '../services/sheets';
+import { generateCoverLetter, summarizeJobDescription, suggestMissingSkills } from '../services/ai';
 
 export default function JobDetector() {
   const [currentJob, setCurrentJob] = useState(null);
@@ -10,6 +11,10 @@ export default function JobDetector() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [applying, setApplying] = useState(false);
+  const [aiLoading, setAiLoading] = useState(null);
+  const [aiOutput, setAiOutput] = useState(null);
+  const [aiView, setAiView] = useState(null); // 'coverLetter' | 'summary' | 'skills'
+  const [aiConfig, setAiConfig] = useState(null);
 
   useEffect(() => {
     loadCurrentJob();
@@ -19,26 +24,24 @@ export default function JobDetector() {
     try {
       const { currentJob: job } = await chrome.storage.session.get(['currentJob']);
       const userProfile = await getProfile();
-      
+      const config = await getAIConfig();
       setProfile(userProfile);
-      
+      setAiConfig(config);
+
       if (job) {
         setCurrentJob(job);
-        
+
         if (userProfile) {
-          // Calculate match score
           const filters = await getFilters();
           const match = calculateMatchScore(job, userProfile, filters);
           setMatchResult(match);
-          
-          // Check duplicate
+
           const dupCheck = await chrome.runtime.sendMessage({
             action: 'checkDuplicate',
             data: job
           });
           setDuplicateCheck(dupCheck);
-          
-          // Also check Google Sheets
+
           const sheetDup = await checkDuplicateInSheets(job);
           if (sheetDup.isDuplicate) {
             setDuplicateCheck(sheetDup);
@@ -60,23 +63,20 @@ export default function JobDetector() {
 
     try {
       setApplying(true);
-      
       const qaBank = await getQABank();
       const resumes = await getResumes();
       const selectedResume = selectBestResume(currentJob, resumes);
-      
-      // Send message to content script to autofill
+
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
       const response = await chrome.tabs.sendMessage(tab.id, {
         action: 'autofillForm',
         profile,
         qaBank,
         selectedResume
       });
-      
+
       if (response.success) {
-        alert(`✅ Autofilled ${response.filledFields} fields! Please review and submit.`);
+        alert(`Autofilled ${response.filledFields} fields! Please review and submit.`);
       }
     } catch (error) {
       console.error('Error autofilling:', error);
@@ -98,14 +98,49 @@ export default function JobDetector() {
           notes: ''
         }
       });
-      
+
       if (response.success) {
-        alert('✅ Application saved successfully!');
+        alert('Application saved successfully!');
         setDuplicateCheck({ isDuplicate: true, reason: 'Just applied' });
       }
     } catch (error) {
       console.error('Error saving application:', error);
       alert('Failed to save application');
+    }
+  }
+
+  async function handleAI(action) {
+    if (!aiConfig?.apiKey) {
+      alert('OpenRouter API key not configured. Go to Settings to add one.');
+      return;
+    }
+    setAiLoading(action);
+    setAiOutput(null);
+    try {
+      if (action === 'coverLetter') {
+        setAiView('coverLetter');
+        const text = await generateCoverLetter(currentJob, profile, aiConfig.apiKey);
+        setAiOutput(text);
+      } else if (action === 'summary') {
+        setAiView('summary');
+        const text = await summarizeJobDescription(currentJob.description, aiConfig.apiKey);
+        setAiOutput(text);
+      } else if (action === 'skills') {
+        setAiView('skills');
+        const skills = await suggestMissingSkills(currentJob.description, profile?.skills, aiConfig.apiKey);
+        setAiOutput(skills.join(', '));
+      }
+    } catch (error) {
+      setAiOutput('Error: ' + error.message);
+    } finally {
+      setAiLoading(null);
+    }
+  }
+
+  function handleCopyOutput() {
+    if (aiOutput) {
+      navigator.clipboard.writeText(aiOutput);
+      alert('Copied to clipboard!');
     }
   }
 
@@ -179,7 +214,7 @@ export default function JobDetector() {
           <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px' }}>
             Match Analysis
           </h4>
-          
+
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -210,7 +245,7 @@ export default function JobDetector() {
                 {matchResult.score}%
               </div>
             </div>
-            
+
             <div>
               <div style={{
                 fontSize: '18px',
@@ -263,50 +298,97 @@ export default function JobDetector() {
         </div>
       )}
 
-      {/* Actions */}
       {!profile && (
         <div className="alert alert-info" style={{ marginBottom: '16px' }}>
           ℹ️ Please setup your profile to enable autofill and matching
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '8px' }}>
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
         <button
           onClick={handleAutofill}
           disabled={!profile || applying}
           style={{
             flex: 1,
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            padding: '14px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            border: 'none',
-            opacity: (!profile || applying) ? 0.5 : 1
+            color: 'white', padding: '14px',
+            borderRadius: '8px', fontSize: '14px', fontWeight: '600',
+            border: 'none', opacity: (!profile || applying) ? 0.5 : 1
           }}
         >
-          {applying ? 'Filling...' : '📝 Autofill Application'}
+          {applying ? 'Filling...' : '📝 Autofill'}
         </button>
-        
         <button
           onClick={handleSaveApplication}
           disabled={duplicateCheck?.isDuplicate}
           style={{
             flex: 1,
-            background: '#28a745',
-            color: 'white',
-            padding: '14px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            border: 'none',
-            opacity: duplicateCheck?.isDuplicate ? 0.5 : 1
+            background: '#28a745', color: 'white',
+            padding: '14px', borderRadius: '8px',
+            fontSize: '14px', fontWeight: '600',
+            border: 'none', opacity: duplicateCheck?.isDuplicate ? 0.5 : 1
           }}
         >
-          💾 Save Application
+          💾 Save
         </button>
       </div>
+
+      {/* AI Actions */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+        <button
+          onClick={() => handleAI('coverLetter')}
+          disabled={aiLoading === 'coverLetter'}
+          style={{ flex: 1, padding: '8px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
+        >
+          {aiLoading === 'coverLetter' ? '⏳' : '📄 Cover Letter'}
+        </button>
+        <button
+          onClick={() => handleAI('summary')}
+          disabled={aiLoading === 'summary'}
+          style={{ flex: 1, padding: '8px', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
+        >
+          {aiLoading === 'summary' ? '⏳' : '📋 Summary'}
+        </button>
+        <button
+          onClick={() => handleAI('skills')}
+          disabled={aiLoading === 'skills'}
+          style={{ flex: 1, padding: '8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
+        >
+          {aiLoading === 'skills' ? '⏳' : '🧠 Skills'}
+        </button>
+      </div>
+
+      {/* AI Output */}
+      {aiOutput && (
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '16px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <strong style={{ fontSize: '13px' }}>
+              {aiView === 'coverLetter' && 'AI Cover Letter'}
+              {aiView === 'summary' && 'Job Summary'}
+              {aiView === 'skills' && 'Suggested Skills'}
+            </strong>
+            <button onClick={handleCopyOutput} style={{
+              padding: '4px 8px', background: '#e7eaf6', color: '#667eea',
+              border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer'
+            }}>
+              📋 Copy
+            </button>
+          </div>
+          <div style={{
+            fontSize: '12px', color: '#333', whiteSpace: 'pre-wrap',
+            lineHeight: '1.6', maxHeight: '200px', overflow: 'auto'
+          }}>
+            {aiOutput}
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: '12px', fontSize: '12px', color: '#666', textAlign: 'center' }}>
         💡 Review all fields before submitting. Manual submit recommended.

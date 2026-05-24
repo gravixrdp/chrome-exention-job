@@ -16,9 +16,16 @@ export default defineConfig({
       },
       output: {
         entryFileNames: '[name].js',
-        chunkFileNames: 'chunks/[name].js',
-        assetFileNames: 'assets/[name][extname]'
-      }
+        chunkFileNames: 'chunks/[name].[hash].js',
+        assetFileNames: 'assets/[name][extname]',
+        // Inline all chunks into entry files for content scripts (MV3 requires single file per script)
+        manualChunks: (id) => {
+          if (id.includes('src/')) return 'vendor';
+          return 'vendor';
+        }
+      },
+      // Ensure content scripts are bundled as single files
+      preserveEntrySignatures: 'strict'
     },
     sourcemap: false,
     minify: 'terser'

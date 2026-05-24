@@ -24,7 +24,6 @@ export function calculateMatchScore(jobData, profile, filters) {
     details.skillsMatch = (matchedSkills.length / profile.skills.length) * 30;
     totalScore += details.skillsMatch;
 
-    // Extract required skills from job description (simple approach)
     const commonTechSkills = [
       'javascript', 'python', 'java', 'react', 'angular', 'vue', 'node',
       'express', 'django', 'flask', 'sql', 'mongodb', 'aws', 'docker',
@@ -78,7 +77,7 @@ export function calculateMatchScore(jobData, profile, filters) {
       totalScore += 15;
       details.strongPoints.push('Preferred location match');
     }
-  } else if (profile.preferredLocations?.includes('Remote') && 
+  } else if (profile.preferredLocations?.includes('Remote') &&
              jobData.workMode?.toLowerCase().includes('remote')) {
     details.locationMatch = 15;
     totalScore += 15;
@@ -134,10 +133,8 @@ export function calculateMatchScore(jobData, profile, filters) {
     }
   }
 
-  // Calculate final score (0-100)
   const finalScore = Math.round((totalScore / maxScore) * 100);
 
-  // Generate recommendation
   let recommendation;
   if (finalScore >= 80) {
     recommendation = 'Strong Match';
@@ -147,11 +144,7 @@ export function calculateMatchScore(jobData, profile, filters) {
     recommendation = 'Weak Match';
   }
 
-  return {
-    score: finalScore,
-    recommendation,
-    details
-  };
+  return { score: finalScore, recommendation, details };
 }
 
 function parseExperience(expStr) {
@@ -160,47 +153,60 @@ function parseExperience(expStr) {
   return match ? parseInt(match[1]) : null;
 }
 
+/**
+ * Parse salary string to numeric value.
+ * Handles: "12 LPA", "12-15 LPA", "₹1,20,000", "50K", "5L", "12.5LPA", "1200000"
+ * For ranges like "12-15 LPA", returns the midpoint.
+ */
 function parseSalary(salaryStr) {
   if (!salaryStr) return null;
-  // Remove currency symbols and convert to number
-  const cleaned = salaryStr.replace(/[^0-9.]/g, '');
-  const num = parseFloat(cleaned);
-  // If salary is in thousands (K) or lakhs (L)
-  if (salaryStr.toLowerCase().includes('k')) {
-    return num * 1000;
-  } else if (salaryStr.toLowerCase().includes('l')) {
-    return num * 100000;
+  const str = salaryStr.toLowerCase().replace(/₹/g, '').replace(/lpa/g, 'l').replace(/\s+/g, ' ').trim();
+
+  // Handle range: e.g. "12-15 l" → midpoint
+  const rangeMatch = str.match(/([\d.]+)\s*[-–]\s*([\d.]+)/);
+  if (rangeMatch) {
+    const low = toNumber(rangeMatch[1]);
+    const high = toNumber(rangeMatch[2]);
+    // Detect unit from original string
+    const unit = str.includes('k') ? 1000 : str.includes('l') ? 100000 : 1;
+    return ((low + high) / 2) * unit;
   }
+
+  // Single number
+  const numMatch = str.match(/([\d.]+)/);
+  if (!numMatch) return null;
+  const num = parseFloat(numMatch[1]);
+  if (str.includes('k')) return num * 1000;
+  if (str.includes('l')) return num * 100000;
   return num;
+}
+
+function toNumber(s) {
+  return parseFloat(s) || 0;
 }
 
 export function selectBestResume(jobData, resumes) {
   if (!resumes || resumes.length === 0) return null;
-  
+
   const jobTitle = jobData.title.toLowerCase();
-  
-  // Try to match resume based on job title
+
   if (jobTitle.includes('frontend') || jobTitle.includes('front-end')) {
     const frontend = resumes.find(r => r.name.toLowerCase().includes('frontend'));
     if (frontend) return frontend;
   }
-  
   if (jobTitle.includes('backend') || jobTitle.includes('back-end')) {
     const backend = resumes.find(r => r.name.toLowerCase().includes('backend'));
     if (backend) return backend;
   }
-  
   if (jobTitle.includes('full stack') || jobTitle.includes('fullstack')) {
     const fullstack = resumes.find(r => r.name.toLowerCase().includes('full'));
     if (fullstack) return fullstack;
   }
-  
   if (jobTitle.includes('fresher') || jobTitle.includes('entry level')) {
     const fresher = resumes.find(r => r.name.toLowerCase().includes('fresher'));
     if (fresher) return fresher;
   }
-  
-  // Return default resume
+
   const defaultResume = resumes.find(r => r.isDefault);
   return defaultResume || resumes[0];
 }

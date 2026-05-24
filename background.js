@@ -1,13 +1,24 @@
-// Background Service Worker for Smart Job Auto Apply Assistant
+// Background Service Worker — Smart Job Auto Apply Assistant
 
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+const MESSAGE_TIMEOUT = 5000; // 5 seconds for sendMessage
 let inactivityTimer;
+
+// Helper: sendMessage with timeout
+function sendMessageWithTimeout(message) {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(null), MESSAGE_TIMEOUT);
+    chrome.runtime.sendMessage(message, (response) => {
+      clearTimeout(timeout);
+      resolve(response);
+    });
+  });
+}
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('Smart Job Auto Apply Assistant installed');
-  
-  // Set default settings
+
   const settings = await chrome.storage.local.get(['settings']);
   if (!settings.settings) {
     await chrome.storage.local.set({
@@ -19,8 +30,7 @@ chrome.runtime.onInstalled.addListener(async () => {
       }
     });
   }
-  
-  // Create alarms for follow-ups
+
   chrome.alarms.create('checkFollowUps', { periodInMinutes: 60 });
 });
 
@@ -28,9 +38,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'jobDetected') {
     handleJobDetected(request.data);
+    return false; // Don't keep channel open
   } else if (request.action === 'checkDuplicate') {
     checkDuplicate(request.data).then(sendResponse);
-    return true; // Keep channel open for async response
+    return true;
   } else if (request.action === 'saveApplication') {
     saveApplication(request.data).then(sendResponse);
     return true;
@@ -42,6 +53,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   } else if (request.action === 'resetInactivityTimer') {
     resetInactivityTimer();
+    return false;
   }
 });
 
@@ -49,7 +61,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function handleJobDetected(jobData) {
   const settings = await chrome.storage.local.get(['settings']);
   if (settings.settings?.notifications) {
-    // Check if job matches filters
     const matches = await checkJobFilters(jobData);
     if (matches) {
       chrome.notifications.create({
@@ -67,17 +78,15 @@ async function handleJobDetected(jobData) {
 async function checkJobFilters(jobData) {
   const { filters } = await chrome.storage.local.get(['filters']);
   if (!filters) return true;
-  
-  // Check keywords
+
   if (filters.keywords && filters.keywords.length > 0) {
-    const hasKeyword = filters.keywords.some(keyword => 
+    const hasKeyword = filters.keywords.some(keyword =>
       jobData.title.toLowerCase().includes(keyword.toLowerCase()) ||
       jobData.description?.toLowerCase().includes(keyword.toLowerCase())
     );
     if (!hasKeyword) return false;
   }
-  
-  // Check excluded keywords
+
   if (filters.excludedKeywords && filters.excludedKeywords.length > 0) {
     const hasExcluded = filters.excludedKeywords.some(keyword =>
       jobData.title.toLowerCase().includes(keyword.toLowerCase()) ||
@@ -85,15 +94,14 @@ async function checkJobFilters(jobData) {
     );
     if (hasExcluded) return false;
   }
-  
-  // Check location
+
   if (filters.locations && filters.locations.length > 0 && jobData.location) {
     const matchesLocation = filters.locations.some(loc =>
       jobData.location.toLowerCase().includes(loc.toLowerCase())
     );
     if (!matchesLocation) return false;
   }
-  
+
   return true;
 }
 
@@ -102,15 +110,13 @@ async function checkDuplicate(jobData) {
   try {
     const { applications } = await chrome.storage.local.get(['applications']);
     const apps = applications || [];
-    
-    // Check by URL
+
     const urlMatch = apps.find(app => app.jobUrl === jobData.jobUrl);
     if (urlMatch) {
       return { isDuplicate: true, reason: 'Already applied to this URL', application: urlMatch };
     }
-    
-    // Check by company + title + location
-    const detailsMatch = apps.find(app => 
+
+    const detailsMatch = apps.find(app =>
       app.company.toLowerCase() === jobData.company.toLowerCase() &&
       app.title.toLowerCase() === jobData.title.toLowerCase() &&
       app.location?.toLowerCase() === jobData.location?.toLowerCase()
@@ -118,7 +124,7 @@ async function checkDuplicate(jobData) {
     if (detailsMatch) {
       return { isDuplicate: true, reason: 'Similar job already applied', application: detailsMatch };
     }
-    
+
     return { isDuplicate: false };
   } catch (error) {
     console.error('Error checking duplicate:', error);
@@ -130,24 +136,21 @@ async function checkDuplicate(jobData) {
 async function saveApplication(appData) {
   try {
     const { applications = [] } = await chrome.storage.local.get(['applications']);
-    
+
     const newApp = {
       id: Date.now().toString(),
       date: new Date().toISOString(),
       ...appData
     };
-    
+
     applications.push(newApp);
     await chrome.storage.local.set({ applications });
-    
-    // Try to sync to Google Sheets
-    try {
-      await syncToGoogleSheets(newApp);
-    } catch (error) {
-      console.error('Failed to sync to Google Sheets:', error);
-    }
-    
-    // Create notification
+
+    // Sync to Google Sheets (non-blocking)
+    syncToGoogleSheets(newApp).catch(err => {
+      console.error('Failed to sync to Google Sheets:', err);
+    });
+
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'assets/icons/icon128.png',
@@ -155,7 +158,7 @@ async function saveApplication(appData) {
       message: `Saved application to ${appData.company}`,
       priority: 1
     });
-    
+
     return { success: true, application: newApp };
   } catch (error) {
     console.error('Error saving application:', error);
@@ -167,11 +170,11 @@ async function saveApplication(appData) {
 async function getGoogleAuthToken() {
   try {
     const token = await new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: true }, (token) => {
+      chrome.identity.getAuthToken({ interactive: true }, (t) => {
         if (chrome.runtime.lastError) {
           reject(chrome.runtime.lastError);
         } else {
-          resolve(token);
+          resolve(t);
         }
       });
     });
@@ -184,22 +187,22 @@ async function getGoogleAuthToken() {
 
 async function revokeGoogleAuthToken() {
   try {
-    const token = await new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: false }, (token) => {
+    const token = await new Promise((resolve) => {
+      chrome.identity.getAuthToken({ interactive: false }, (t) => {
         if (chrome.runtime.lastError) {
           resolve(null);
         } else {
-          resolve(token);
+          resolve(t);
         }
       });
     });
-    
+
     if (token) {
       await new Promise((resolve) => {
         chrome.identity.removeCachedAuthToken({ token }, resolve);
       });
     }
-    
+
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -212,12 +215,12 @@ async function syncToGoogleSheets(appData) {
   if (!googleSheets?.spreadsheetId) {
     throw new Error('Google Sheets not configured');
   }
-  
+
   const tokenResponse = await getGoogleAuthToken();
   if (!tokenResponse.success) {
     throw new Error('Failed to get auth token');
   }
-  
+
   const values = [[
     appData.date,
     appData.platform,
@@ -231,7 +234,7 @@ async function syncToGoogleSheets(appData) {
     appData.notes || '',
     appData.followUpDate || ''
   ]];
-  
+
   const response = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${googleSheets.spreadsheetId}/values/Sheet1:append?valueInputOption=RAW`,
     {
@@ -243,11 +246,11 @@ async function syncToGoogleSheets(appData) {
       body: JSON.stringify({ values })
     }
   );
-  
+
   if (!response.ok) {
-    throw new Error('Failed to sync to Google Sheets');
+    throw new Error(`Google Sheets API error: ${response.status} ${response.statusText}`);
   }
-  
+
   return await response.json();
 }
 
@@ -256,7 +259,6 @@ function resetInactivityTimer() {
   if (inactivityTimer) {
     clearTimeout(inactivityTimer);
   }
-  
   inactivityTimer = setTimeout(async () => {
     const { settings } = await chrome.storage.local.get(['settings']);
     if (settings?.autoLockEnabled) {
@@ -270,11 +272,11 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'checkFollowUps') {
     const { applications = [] } = await chrome.storage.local.get(['applications']);
     const today = new Date().toISOString().split('T')[0];
-    
-    const dueFollowUps = applications.filter(app => 
+
+    const dueFollowUps = applications.filter(app =>
       app.followUpDate && app.followUpDate === today && app.status !== 'Rejected'
     );
-    
+
     if (dueFollowUps.length > 0) {
       chrome.notifications.create({
         type: 'basic',
