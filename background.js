@@ -58,6 +58,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'getAuthToken') {
     getGoogleAuthToken().then(sendResponse);
     return true;
+  } else if (request.action === 'getServiceAccountToken') {
+    getServiceAccountTokenHandler(request.serviceAccountJson).then(sendResponse);
+    return true;
   } else if (request.action === 'revokeAuthToken') {
     revokeGoogleAuthToken().then(sendResponse);
     return true;
@@ -263,6 +266,66 @@ async function revokeGoogleAuthToken() {
 
     return { success: true };
   } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Service Account JWT Token Handler
+async function getServiceAccountTokenHandler(serviceAccountJson) {
+  try {
+    const sa = typeof serviceAccountJson === 'string'
+      ? JSON.parse(serviceAccountJson)
+      : serviceAccountJson;
+
+    const { cleanPemKey, importRsaKey, createJwt, exchangeJwtForToken } =
+      await import('src/services/sheets-auth.js');
+
+    // We need to call these from the module, but they're not exported as a namespace
+    // So let's do the work directly here
+    const pem = sa.private_key;
+    const raw = pem.replace(/-----BEGIN PRIVATE KEY-----/, '')
+                   .replace(/-----END PRIVATE KEY-----/, '')
+                   .replace(/\s/g, '');
+    const binary = Uint8Array.from(atob(raw), c => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey(
+      'pkcs8', binary,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false, ['sign']
+    );
+
+    const now = Math.floor(Date.now() / 1000);
+    const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({
+      iss: sa.client_email,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: now + 3600,
+      iat: now
+    }));
+
+    const toSign = header + '.' + payload.replace(/=+$/, '');
+    const signature = await crypto.subtle.sign(
+      'RSASSA-PKCS1-v1_5', key,
+      new TextEncoder().encode(toSign)
+    );
+    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const jwt = toSign + '.' + sigB64;
+
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + encodeURIComponent(jwt)
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Token exchange failed: ${res.status} ${text}`);
+    }
+    const data = await res.json();
+
+    return { success: true, token: data.access_token, method: 'service-account' };
+  } catch (error) {
+    console.error('Service account token error:', error);
     return { success: false, error: error.message };
   }
 }

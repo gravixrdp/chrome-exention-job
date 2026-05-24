@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings, saveSettings, getGoogleSheetsConfig, saveGoogleSheetsConfig, getAIConfig, saveAIConfig, getDiscoveryConfig, saveDiscoveryConfig } from '../services/storage';
+import { getSettings, saveSettings, getGoogleSheetsConfig, saveGoogleSheetsConfig, getAIConfig, saveAIConfig, getDiscoveryConfig, saveDiscoveryConfig, getSheetsConfig, saveSheetsConfig } from '../services/storage';
 import { connectGoogleSheets, disconnectGoogleSheets, getGoogleSheetsStatus } from '../services/sheets';
 import { changePassword } from '../services/auth';
 import { initProviders, saveProviders, getProviders, testConnection } from '../services/scraping';
@@ -17,6 +17,11 @@ export default function Settings() {
   const [testingProvider, setTestingProvider] = useState(null);
   const [providerStatus, setProviderStatus] = useState({});
 
+  // Sheets config state
+  const [sheetsConfig, setSheetsConfig] = useState(null);
+  const [sheetsAuth, setSheetsAuth] = useState('oauth');
+  const [saFileError, setSaFileError] = useState('');
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -27,11 +32,14 @@ export default function Settings() {
     const a = await getAIConfig();
     const d = await getDiscoveryConfig();
     const sp = await initProviders();
+    const sc = await getSheetsConfig();
     setSettings(s);
     setGoogleSheets(g);
     setAiConfig(a);
     setDiscoveryConfig(d);
     setScrapingProviders(sp);
+    setSheetsConfig(sc);
+    if (sc) setSheetsAuth(sc.authMethod || 'oauth');
     setLoading(false);
   }
 
@@ -70,6 +78,90 @@ export default function Settings() {
     await saveAIConfig({ enabled: true, apiKey });
     alert('OpenRouter API key saved!');
     loadSettings();
+  }
+
+  // --- Sheets Config Handlers ---
+  function updateSheetsConfig(field, value) {
+    setSheetsConfig(prev => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSaveSheetsConfig() {
+    if (!sheetsConfig.spreadsheetId) {
+      alert('Please enter Spreadsheet ID');
+      return;
+    }
+
+    // If service account mode, validate JSON
+    if (sheetsAuth === 'service-account' && !sheetsConfig.serviceAccountJson) {
+      alert('Please upload service account JSON file');
+      return;
+    }
+
+    await saveSheetsConfig({ ...sheetsConfig, authMethod: sheetsAuth });
+    setSheetsConfig({ ...sheetsConfig, authMethod: sheetsAuth });
+
+    // Also save in googleSheets config for backward compatibility
+    await saveGoogleSheetsConfig({
+      connected: true,
+      spreadsheetId: sheetsConfig.spreadsheetId,
+      spreadsheetName: 'Google Sheet'
+    });
+    setGoogleSheets({ connected: true, spreadsheetName: 'Google Sheet' });
+
+    alert('Sheets configuration saved!');
+  }
+
+  async function handleTestConnection() {
+    if (!sheetsConfig.spreadsheetId) {
+      alert('Please enter Spreadsheet ID');
+      return;
+    }
+
+    try {
+      let token;
+      if (sheetsAuth === 'service-account') {
+        const res = await chrome.runtime.sendMessage({
+          action: 'getServiceAccountToken',
+          serviceAccountJson: sheetsConfig.serviceAccountJson
+        });
+        if (!res.success) throw new Error(res.error);
+        token = res.token;
+      } else {
+        const res = await chrome.runtime.sendMessage({ action: 'getAuthToken' });
+        if (!res.success) throw new Error(res.error);
+        token = res.token;
+      }
+
+      // Verify access
+      const fetchRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetsConfig.spreadsheetId}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!fetchRes.ok) throw new Error('Cannot access spreadsheet. Check ID and sharing.');
+      const data = await fetchRes.json();
+      alert(`✅ Connected to: ${data.properties.title}\nAuth: ${sheetsAuth === 'service-account' ? 'Service Account' : 'OAuth'}`);
+    } catch (error) {
+      alert(`❌ Connection failed: ${error.message}`);
+    }
+  }
+
+  function handleSaFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    setSaFileError('');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target.result);
+        if (!json.client_email || !json.private_key) {
+          throw new Error('Missing client_email or private_key');
+        }
+        updateSheetsConfig('serviceAccountJson', e.target.result);
+      } catch (err) {
+        setSaFileError('Invalid JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
   }
 
   async function handleChangePassword() {
@@ -173,26 +265,133 @@ export default function Settings() {
       <div style={{ background: 'white', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
         <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Google Sheets</h3>
 
-        {googleSheets.connected ? (
+        {/* Spreadsheet ID */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px', display: 'block' }}>Spreadsheet ID</label>
+          <input
+            type="text"
+            value={sheetsConfig?.spreadsheetId || ''}
+            onChange={(e) => updateSheetsConfig('spreadsheetId', e.target.value)}
+            placeholder="e.g. 1BxiMVs0XRA8n..."
+            style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
+          />
+        </div>
+
+        {/* Auth Method */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px', display: 'block' }}>Authentication Method</label>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="authMethod"
+                checked={sheetsAuth === 'oauth'}
+                onChange={() => setSheetsAuth('oauth')}
+              />
+              Chrome OAuth
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="authMethod"
+                checked={sheetsAuth === 'service-account'}
+                onChange={() => setSheetsAuth('service-account')}
+              />
+              Service Account
+            </label>
+          </div>
+          <div style={{ fontSize: '11px', color: '#888' }}>
+            {sheetsAuth === 'oauth'
+              ? 'Uses Chrome login popup. Simple setup.'
+              : 'Upload GCP Service Account JSON. Share sheet with service account email.'}
+          </div>
+        </div>
+
+        {/* Service Account Upload */}
+        {sheetsAuth === 'service-account' && (
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px', display: 'block' }}>
+              Service Account JSON File
+            </label>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleSaFileUpload}
+              style={{ fontSize: '13px', padding: '8px 0' }}
+            />
+            {sheetsConfig?.serviceAccountJson && (
+              <div className="alert alert-success" style={{ fontSize: '12px', marginTop: '6px' }}>
+                ✅ File loaded
+              </div>
+            )}
+            {saFileError && (
+              <div className="alert alert-danger" style={{ fontSize: '12px', marginTop: '6px' }}>
+                ❌ {saFileError}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab Names */}
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '4px', display: 'block' }}>Tab Names</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#666', width: '24px' }}>Q&A</span>
+              <input
+                type="text"
+                value={sheetsConfig?.qaTabName || 'Q&A Bank'}
+                onChange={(e) => updateSheetsConfig('qaTabName', e.target.value)}
+                style={{ flex: 1, padding: '6px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '12px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#666', width: '24px' }}>Hiring</span>
+              <input
+                type="text"
+                value={sheetsConfig?.hiringPostsTabName || 'HiringPosts'}
+                onChange={(e) => updateSheetsConfig('hiringPostsTabName', e.target.value)}
+                style={{ flex: 1, padding: '6px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '12px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#666', width: '24px' }}>Jobs</span>
+              <input
+                type="text"
+                value={sheetsConfig?.applicationsTabName || 'Sheet1'}
+                onChange={(e) => updateSheetsConfig('applicationsTabName', e.target.value)}
+                style={{ flex: 1, padding: '6px 8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '12px' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <button
+            onClick={handleTestConnection}
+            style={{ flex: 1, padding: '10px', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
+          >
+            🔌 Test
+          </button>
+          <button
+            onClick={handleSaveSheetsConfig}
+            style={{ flex: 1, padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
+          >
+            💾 Save
+          </button>
+        </div>
+
+        {googleSheets?.connected && (
           <div>
-            <div className="alert alert-success" style={{ marginBottom: '12px', fontSize: '13px' }}>
+            <div className="alert alert-success" style={{ fontSize: '12px', marginBottom: '8px' }}>
               ✅ Connected: {googleSheets.spreadsheetName}
             </div>
-            <button onClick={handleDisconnectSheets} style={{ width: '100%', padding: '10px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
+            <button
+              onClick={handleDisconnectSheets}
+              style={{ width: '100%', padding: '8px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px' }}
+            >
               Disconnect
-            </button>
-          </div>
-        ) : (
-          <div>
-            <input
-              type="text"
-              value={spreadsheetId}
-              onChange={(e) => setSpreadsheetId(e.target.value)}
-              placeholder="Enter Spreadsheet ID"
-              style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', marginBottom: '8px' }}
-            />
-            <button onClick={handleConnectSheets} style={{ width: '100%', padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
-              Connect Google Sheets
             </button>
           </div>
         )}
@@ -354,7 +553,7 @@ export default function Settings() {
       <div style={{ background: 'white', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
         <div style={{ fontSize: '32px', marginBottom: '8px' }}>💼</div>
         <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '4px' }}>Smart Job Auto Apply Assistant</div>
-        <div style={{ fontSize: '12px', color: '#666' }}>Version 1.1.0</div>
+        <div style={{ fontSize: '12px', color: '#666' }}>Version 1.2.0</div>
       </div>
     </div>
   );

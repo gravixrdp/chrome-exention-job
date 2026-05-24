@@ -117,6 +117,24 @@ export async function getGoogleSheetsConfig() {
   return googleSheets || null;
 }
 
+export async function saveSheetsConfig(config) {
+  await chrome.storage.local.set({ sheetsConfig: config });
+  return config;
+}
+
+export async function getSheetsConfig() {
+  const { sheetsConfig } = await chrome.storage.local.get(['sheetsConfig']);
+  return sheetsConfig || {
+    authMethod: 'oauth', // 'oauth' | 'service-account'
+    serviceAccountJson: null,
+    spreadsheetId: '',
+    qaTabName: 'Q&A Bank',
+    hiringPostsTabName: 'HiringPosts',
+    applicationsTabName: 'Sheet1',
+    lastSyncAt: null
+  };
+}
+
 export async function saveAIConfig(config) {
   await chrome.storage.local.set({ aiConfig: config });
   return config;

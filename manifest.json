@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Smart Job Auto Apply Assistant",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Advanced personal job application automation for LinkedIn, Indeed, and Naukri",
   "permissions": [
     "storage",

@@ -13,7 +13,7 @@ A **Chrome Extension (Manifest V3)** that automates the job application workflow
 | Build | Vite 8 + @vitejs/plugin-react + terser |
 | Package Manager | Yarn |
 | Storage | `chrome.storage.local` + `chrome.storage.session` |
-| External APIs | Google Sheets, OpenRouter AI, Scraping Providers |
+| External APIs | Google Sheets (OAuth + Service Account), OpenRouter AI, Scraping Providers |
 | Scraping Providers | Firecrawl, ScrapingBee, Scrape.do, Apify, ScrapingDog, Custom |
 | Auth | SHA-256 (salted) password, Chrome identity OAuth2 for Google |
 
@@ -56,6 +56,8 @@ A **Chrome Extension (Manifest V3)** that automates the job application workflow
 │       ├── providers.js     # Scraping provider config constants
 │       ├── scraping.js      # Multi-provider scraping with fallback
 │       ├── hiring-post.js   # Hiring post detection — email extraction, post classification
+│       ├── sheets-auth.js   # Sheets auth — OAuth & Service Account JWT
+│       ├── gsheets-sync.js  # Bidirectional Sheets sync (Q&A, Hiring Posts, Applications)
 │       └── discovery.js     # Auto job discovery engine
 ├── assets/icons/          # Extension icons (16, 48, 128)
 ├── vite.config.js         # Vite build config
@@ -114,14 +116,19 @@ calculateMatchScore(job, profile, filters):
 |---------|-----------|---------|
 | `chrome.runtime.onMessage` | Content ↔ Background | `jobDetected`, `scrollJobsFound`, `checkDuplicate`, `saveApplication`, `startDiscovery` |
 | `chrome.tabs.sendMessage` | Popup → Content Script | `autofillForm`, `getCurrentJob`, `startScroll`, `stopScroll` |
-| `chrome.storage.local` | Persistent | Profile, resumes, Q&A, applications, settings, filters, scraping providers |
+| `chrome.storage.local` | Persistent | Profile, resumes, Q&A, applications, settings, filters, scraping providers, sheetsConfig |
 | `chrome.storage.session` | Session-only | Lock state, current job, scroll detected jobs, discovery results |
 | `chrome.runtime.sendMessage` | Content ↔ Background | `saveHiringPost` for hiring post data |
+| `chrome.runtime.sendMessage` | Popup ↔ Background | `getServiceAccountToken` for Sheets auth |
 
 ## Required Configuration
 
 1. **manifest.json `oauth2.client_id`** — Replace with real Google OAuth client ID
-2. **Google Sheets** — Create spreadsheet, paste ID in Settings
+2. **Google Sheets** — Create spreadsheet with these tabs:
+   - `Sheet1` (or custom name): Applications tracking
+   - `Q&A Bank`: Q&A pairs (editable from Sheets & extension)
+   - `HiringPosts`: HR emails and hiring post data
+   Paste spreadsheet ID in Settings. Choose auth method (OAuth or Service Account).
 3. **OpenRouter AI (optional)** — API key in Settings
 4. **Scraping Providers** — Add API keys for Firecrawl, ScrapingBee, etc. in Settings
 5. **Auto Discovery** — Enable and set interval (on-demand / 30 min / 2 hours / 6 hours)
@@ -154,5 +161,22 @@ User visits LinkedIn feed or post page
   -> followAuthor() clicks Follow/Connect button
   -> saveToSheets() saves to Google Sheets "HiringPosts" tab
   -> Status badge shows count: "X hiring post(s) found · Y email(s)"
+```
+
+### 7. Q&A Google Sheets Sync (Bidirectional)
+```
+User configures spreadsheet ID + auth method in Settings
+  -> OAuth: Chrome identity login popup
+  -> Service Account: Upload GCP JSON file, share sheet with service account email
+
+QAManager Tab:
+  -> "Load from Sheets": Pulls all Q&A from Sheets, replaces local bank
+  -> "Push to Sheets": Writes all local Q&A to Sheets tab
+
+Sheets Structure (Q&A Bank Tab):
+  Column A: Question, Column B: Answer, Column C: Category
+
+User edits in Google Sheets → clicks "Load from Sheets" → local bank updated
+User edits in extension → clicks "Push to Sheets" → Sheets updated
 ```
 
