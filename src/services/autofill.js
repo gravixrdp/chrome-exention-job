@@ -1,11 +1,12 @@
 // Autofill Engine for Job Application Forms
-// NEW: Smart Q&A — if a question has no answer, asks the user and saves for future
+// Smart Q&A — fuzzy matching: keyword overlap + AI semantic fallback
 
 export class AutofillEngine {
-  constructor(profile, qaBank, selectedResume) {
+  constructor(profile, qaBank, selectedResume, aiConfig) {
     this.profile = profile;
     this.qaBank = qaBank;
     this.selectedResume = selectedResume;
+    this.aiConfig = aiConfig;
     this.filledFields = [];
     this.unansweredQuestions = [];
   }
@@ -105,27 +106,22 @@ export class AutofillEngine {
 
       // Smart Q&A: if field looks like a custom question but has no answer, track it
       if (!value && !textarea.value && (label || placeholder)) {
-        // Check if this is a recognizable question
         const questionText = label || placeholder || name;
-        const qaItem = this.qaBank?.find(qa =>
-          questionText.toLowerCase().includes(qa.question.toLowerCase()) ||
-          qa.question.toLowerCase().includes(questionText.toLowerCase())
-        );
-
-        if (qaItem && !qaItem.answer) {
-          this.unansweredQuestions.push({
-            question: qaItem.question,
-            element: textarea,
-            label: questionText
-          });
-        } else if (!qaItem && questionText.length > 3 && !questionText.includes('name') && !questionText.includes('email')) {
-          // New unrecognized question — track for user prompt
-          this.unansweredQuestions.push({
-            question: questionText,
-            element: textarea,
-            label: questionText,
-            isNew: true
-          });
+        if (questionText.length > 3 && !questionText.includes('name') && !questionText.includes('email')) {
+          // Check if any Q&A bank entry has a similar, answered question
+          const similar = this.findSimilarQA(questionText);
+          if (similar) {
+            // Similar question found with answer — use it
+            this.fillField(textarea, similar.answer);
+          } else {
+            // No similar answer found — track for user prompt
+            this.unansweredQuestions.push({
+              question: questionText,
+              element: textarea,
+              label: questionText,
+              isNew: true
+            });
+          }
         }
       }
 
@@ -349,6 +345,75 @@ export class AutofillEngine {
       item.question.toLowerCase() === question.toLowerCase()
     );
     return qa?.answer || '';
+  }
+
+  /**
+   * Find the most similar Q&A from the bank for a given question.
+   * Uses keyword overlap (Jaccard similarity) with 0.4 threshold.
+   * Also checks substring containment.
+   */
+  findSimilarQA(questionText) {
+    if (!this.qaBank || !questionText) return null;
+
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const qa of this.qaBank) {
+      if (!qa.answer) continue;
+
+      // Exact match — priority
+      if (questionText.toLowerCase() === qa.question.toLowerCase()) {
+        return qa;
+      }
+
+      // Substring match — high priority
+      const qaLower = qa.question.toLowerCase();
+      const questionLower = questionText.toLowerCase();
+      if (qaLower.includes(questionLower) || questionLower.includes(qaLower)) {
+        return qa;
+      }
+
+      // Keyword overlap — shared words / total unique words
+      const score = this.keywordSimilarity(questionText, qa.question);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = qa;
+      }
+    }
+
+    return bestScore >= 0.4 ? bestMatch : null;
+  }
+
+  /**
+   * Jaccard similarity between two questions based on shared meaningful words.
+   */
+  keywordSimilarity(textA, textB) {
+    const stopWords = new Set([
+      'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been',
+      'do', 'does', 'did', 'will', 'would', 'can', 'could', 'may', 'might',
+      'i', 'you', 'we', 'they', 'it', 'this', 'that', 'these', 'those',
+      'my', 'your', 'our', 'their', 'its', 'not', 'but', 'or', 'and',
+      'if', 'so', 'to', 'in', 'on', 'at', 'for', 'of', 'with', 'by',
+      'from', 'up', 'about', 'into', 'through', 'during', 'before',
+      'after', 'please', 'briefly', 'kindly'
+    ]);
+
+    function tokenize(text) {
+      return text
+        .toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !stopWords.has(w));
+    }
+
+    const setA = new Set(tokenize(textA));
+    const setB = new Set(tokenize(textB));
+    if (!setA.size && !setB.size) return 1;
+    if (!setA.size || !setB.size) return 0;
+
+    const intersection = [...setA].filter(w => setB.has(w)).length;
+    const union = new Set([...setA, ...setB]).size;
+    return intersection / union;
   }
 
   highlightFilledFields() {

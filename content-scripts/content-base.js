@@ -115,7 +115,8 @@ function createContentScript({ platform, extractJobData, isJobPage }) {
         const engine = new AutofillEngine(
           request.profile,
           request.qaBank,
-          request.selectedResume
+          request.selectedResume,
+          request.aiConfig
         );
         const filled = engine.autofill();
 

@@ -49,6 +49,7 @@ A **Chrome Extension (Manifest V3)** that automates the job application workflow
 │       ├── detector.js      # Platform detection, job/card extraction
 │       ├── matcher.js       # calculateMatchScore (weighted), selectBestResume
 │       ├── autofill.js      # AutofillEngine class
+│       ├── qa-matcher.js    # Similarity matching — keyword overlap + AI semantic fallback
 │       ├── auth.js         # Salted SHA-256 password hash
 │       ├── storage.js       # CRUD over chrome.storage.local
 │       ├── sheets.js        # Google Sheets OAuth, sync, duplicate check
@@ -163,7 +164,21 @@ User visits LinkedIn feed or post page
   -> Status badge shows count: "X hiring post(s) found · Y email(s)"
 ```
 
-### 7. Q&A Google Sheets Sync (Bidirectional)
+### 8. Q&A Similarity Matching (Keyword Overlap + AI Fallback)
+```
+Form question appears
+  → findSimilarQA() checks Q&A bank for similar questions
+  → Keyword overlap (Jaccard similarity): shared words / total unique words
+  → Score >= 0.4: Use the best matching answer
+  → Score < 0.4: AI semantic fallback (OpenRouter, top-3 closest)
+  → AI score >= 75%: Use the answer
+  → No match: Prompt user, save answer for future
+
+Examples:
+  "Tell me about yourself" ↔ "Describe your background" → 33% (yourself)
+  "Why should we hire you?" ↔ "What makes you a good fit?" → AI checks: ~85%
+  "Reason for leaving" ↔ "Reason for job change" → 60% (reason, job)
+```
 ```
 User configures spreadsheet ID + auth method in Settings
   -> OAuth: Chrome identity login popup
