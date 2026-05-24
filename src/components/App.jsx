@@ -8,6 +8,7 @@ import QAManager from './QAManager';
 import JobDetector from './JobDetector';
 import ApplicationTracker from './ApplicationTracker';
 import Settings from './Settings';
+import JobSearch from './JobSearch';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -17,11 +18,10 @@ export default function App() {
 
   useEffect(() => {
     checkAuthStatus();
-    // Reset inactivity timer on user activity
     const handleActivity = () => resetInactivityTimer();
     window.addEventListener('click', handleActivity);
     window.addEventListener('keypress', handleActivity);
-    
+
     return () => {
       window.removeEventListener('click', handleActivity);
       window.removeEventListener('keypress', handleActivity);
@@ -31,12 +31,12 @@ export default function App() {
   async function checkAuthStatus() {
     const setup = await isPasswordSetup();
     setPasswordSetup(setup);
-    
+
     if (setup) {
       const locked = await isLocked();
       setAuthenticated(!locked);
     }
-    
+
     setLoading(false);
   }
 
@@ -63,11 +63,8 @@ export default function App() {
   if (loading) {
     return (
       <div style={{
-        width: '420px',
-        height: '600px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: '420px', height: '600px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       }}>
         <div className="spinner"></div>
@@ -87,17 +84,14 @@ export default function App() {
 
   return (
     <div style={{
-      width: '420px',
-      height: '600px',
-      display: 'flex',
-      flexDirection: 'column',
+      width: '420px', height: '600px',
+      display: 'flex', flexDirection: 'column',
       background: '#f8f9fa'
     }}>
       {/* Header */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '16px',
-        color: 'white',
+        padding: '16px', color: 'white',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -105,13 +99,9 @@ export default function App() {
           <button
             onClick={handleLogout}
             style={{
-              background: 'rgba(255,255,255,0.2)',
-              color: 'white',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: '600',
-              border: 'none'
+              background: 'rgba(255,255,255,0.2)', color: 'white',
+              padding: '6px 12px', borderRadius: '6px',
+              fontSize: '12px', fontWeight: '600', border: 'none'
             }}
           >
             Lock
@@ -121,13 +111,12 @@ export default function App() {
 
       {/* Navigation */}
       <div style={{
-        display: 'flex',
-        background: 'white',
-        borderBottom: '1px solid #e0e0e0',
-        overflowX: 'auto'
+        display: 'flex', background: 'white',
+        borderBottom: '1px solid #e0e0e0', overflowX: 'auto'
       }}>
         {[
           { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+          { id: 'search', label: 'Search', icon: '🌐' },
           { id: 'job', label: 'Job', icon: '💼' },
           { id: 'tracker', label: 'Tracker', icon: '📝' },
           { id: 'profile', label: 'Profile', icon: '👤' },
@@ -139,16 +128,13 @@ export default function App() {
             key={nav.id}
             onClick={() => setCurrentView(nav.id)}
             style={{
-              flex: 1,
-              padding: '12px 8px',
+              flex: 1, padding: '12px 8px',
               background: currentView === nav.id ? '#f0f0f0' : 'transparent',
               border: 'none',
               borderBottom: currentView === nav.id ? '3px solid #667eea' : '3px solid transparent',
-              fontSize: '11px',
-              fontWeight: '600',
+              fontSize: '11px', fontWeight: '600',
               color: currentView === nav.id ? '#667eea' : '#666',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              cursor: 'pointer', transition: 'all 0.2s ease',
               whiteSpace: 'nowrap'
             }}
           >
@@ -159,12 +145,9 @@ export default function App() {
       </div>
 
       {/* Content */}
-      <div style={{
-        flex: 1,
-        overflow: 'auto',
-        padding: '16px'
-      }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         {currentView === 'dashboard' && <Dashboard onNavigate={setCurrentView} />}
+        {currentView === 'search' && <JobSearch />}
         {currentView === 'job' && <JobDetector />}
         {currentView === 'tracker' && <ApplicationTracker />}
         {currentView === 'profile' && <ProfileManager />}

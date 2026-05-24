@@ -126,3 +126,31 @@ export async function getAIConfig() {
   const { aiConfig } = await chrome.storage.local.get(['aiConfig']);
   return aiConfig || { enabled: false, apiKey: '' };
 }
+
+// --- Discovery Config ---
+
+export async function saveDiscoveryConfig(config) {
+  await chrome.storage.local.set({ discoveryConfig: config });
+  return config;
+}
+
+export async function getDiscoveryConfig() {
+  const { discoveryConfig } = await chrome.storage.local.get(['discoveryConfig']);
+  return discoveryConfig || {
+    enabled: false,
+    intervalMinutes: 0, // 0 = on-demand only
+    platforms: ['LinkedIn', 'Indeed', 'Naukri']
+  };
+}
+
+// --- Scroll Detected Jobs ---
+
+export async function getScrollDetectedJobs() {
+  const { scrollDetectedJobs } = await chrome.storage.session.get(['scrollDetectedJobs']);
+  return scrollDetectedJobs || [];
+}
+
+export async function saveScrollDetectedJobs(jobs) {
+  await chrome.storage.session.set({ scrollDetectedJobs: jobs });
+  return jobs;
+}

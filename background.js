@@ -31,14 +31,24 @@ chrome.runtime.onInstalled.addListener(async () => {
     });
   }
 
+  // Create alarms for follow-ups
   chrome.alarms.create('checkFollowUps', { periodInMinutes: 60 });
+
+  // Create alarm for auto-discovery
+  const { discoveryConfig } = await chrome.storage.local.get(['discoveryConfig']);
+  if (discoveryConfig?.enabled && discoveryConfig.intervalMinutes > 0) {
+    chrome.alarms.create('autoDiscovery', { periodInMinutes: discoveryConfig.intervalMinutes });
+  }
 });
 
 // Handle messages from content scripts and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'jobDetected') {
     handleJobDetected(request.data);
-    return false; // Don't keep channel open
+    return false;
+  } else if (request.action === 'scrollJobsFound') {
+    handleScrollJobsFound(request.data);
+    return false;
   } else if (request.action === 'checkDuplicate') {
     checkDuplicate(request.data).then(sendResponse);
     return true;
@@ -54,8 +64,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'resetInactivityTimer') {
     resetInactivityTimer();
     return false;
+  } else if (request.action === 'startDiscovery') {
+    startDiscovery().then(sendResponse);
+    return true;
+  } else if (request.action === 'promptQuestion') {
+    // Show question prompt in the active tab via scripting API
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      if (tabs.length === 0) {
+        sendResponse({ answer: '' });
+        return;
+      }
+      const tab = tabs[0];
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: askQuestion,
+        args: [request.question, request.isQuestionNew]
+      });
+      sendResponse({ answer: result });
+    });
+    return true;
   }
 });
+
+// Helper: show native prompt in page context
+function askQuestion(question, isQuestionNew) {
+  const heading = isQuestionNew
+    ? '📝 Smart Q&A — New Question\n\nAnswer this question (will be saved for future):'
+    : '📝 Smart Q&A\n\nYou haven\'t answered this question yet:';
+
+  return prompt(`${heading}\n\nQ: ${question}`);
+}
 
 // Handle job detected
 async function handleJobDetected(jobData) {
@@ -69,6 +107,23 @@ async function handleJobDetected(jobData) {
         title: 'Matching Job Found!',
         message: `${jobData.title} at ${jobData.company}`,
         priority: 2
+      });
+    }
+  }
+}
+
+// Handle scroll-detected jobs from auto-scroll content script
+async function handleScrollJobsFound(data) {
+  const settings = await chrome.storage.local.get(['settings']);
+  if (settings.settings?.notifications && data.newCount > 0) {
+    // Only notify if this is a significant batch
+    if (data.count > 0 && data.count % 5 === 0) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'assets/icons/icon128.png',
+        title: '📜 Scrolling...',
+        message: `${data.count} jobs detected on search page`,
+        priority: 1
       });
     }
   }
@@ -287,4 +342,41 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       });
     }
   }
+
+  // Auto-discovery alarm
+  if (alarm.name === 'autoDiscovery') {
+    await startDiscovery();
+  }
 });
+
+// Start job discovery
+async function startDiscovery() {
+  try {
+    const { profile } = await chrome.storage.local.get(['profile']);
+    if (!profile) {
+      console.log('Discovery skipped: no profile');
+      return { success: false, error: 'Profile not set up' };
+    }
+
+    // Import discovery service dynamically
+    const { discoverJobs, checkForNewJobs, notifyNewJobs } = await import('src/services/discovery.js');
+    const result = await discoverJobs(profile);
+    const allJobs = result.platforms.flatMap(p => p.jobs);
+    const newJobs = await checkForNewJobs(allJobs);
+
+    if (newJobs.length > 0) {
+      notifyNewJobs(newJobs, result.totalFound);
+    }
+
+    // Store discovery results
+    await chrome.storage.session.set({
+      discoveryResults: allJobs,
+      discoveryTimestamp: result.timestamp
+    });
+
+    return { success: true, totalFound: result.totalFound, newJobs: newJobs.length };
+  } catch (error) {
+    console.error('Discovery error:', error);
+    return { success: false, error: error.message };
+  }
+}

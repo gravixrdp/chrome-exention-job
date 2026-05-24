@@ -110,7 +110,7 @@ function createContentScript({ platform, extractJobData, isJobPage }) {
     if (request.action === 'getCurrentJob') {
       sendResponse({ job: currentJobData });
     } else if (request.action === 'autofillForm') {
-      import('../src/services/autofill.js').then(module => {
+      import('../src/services/autofill.js').then(async module => {
         const { AutofillEngine } = module;
         const engine = new AutofillEngine(
           request.profile,
@@ -118,7 +118,14 @@ function createContentScript({ platform, extractJobData, isJobPage }) {
           request.selectedResume
         );
         const filled = engine.autofill();
-        sendResponse({ success: true, filledFields: filled.length });
+
+        // Smart Q&A: ask user for unanswered questions
+        const qaAnswers = await engine.promptUnansweredQuestions();
+        sendResponse({
+          success: true,
+          filledFields: filled.length,
+          qaAnswered: qaAnswers.length
+        });
       });
       return true;
     }

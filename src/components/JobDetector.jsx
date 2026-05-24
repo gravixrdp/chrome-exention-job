@@ -3,6 +3,7 @@ import { getProfile, getResumes, getQABank, getFilters, getAIConfig } from '../s
 import { calculateMatchScore, selectBestResume } from '../services/matcher';
 import { checkDuplicateInSheets } from '../services/sheets';
 import { generateCoverLetter, summarizeJobDescription, suggestMissingSkills } from '../services/ai';
+import { searchWithFallback } from '../services/scraping';
 
 export default function JobDetector() {
   const [currentJob, setCurrentJob] = useState(null);
@@ -13,8 +14,10 @@ export default function JobDetector() {
   const [applying, setApplying] = useState(false);
   const [aiLoading, setAiLoading] = useState(null);
   const [aiOutput, setAiOutput] = useState(null);
-  const [aiView, setAiView] = useState(null); // 'coverLetter' | 'summary' | 'skills'
+  const [aiView, setAiView] = useState(null);
   const [aiConfig, setAiConfig] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
 
   useEffect(() => {
     loadCurrentJob();
@@ -137,6 +140,31 @@ export default function JobDetector() {
     }
   }
 
+  async function handleSearchWeb() {
+    if (!profile) {
+      alert('Please setup your profile first');
+      return;
+    }
+    setSearching(true);
+    setAiOutput(null);
+    setAiView(null);
+    try {
+      const keywords = profile.skills?.join(' ') || profile.preferredRoles?.join(' ') || 'developer';
+      const result = await searchWithFallback(currentJob?.platform || 'LinkedIn', keywords, profile);
+
+      if (result.success) {
+        setSearchResults(result.jobs);
+        alert(`Found ${result.jobs.length} similar jobs via ${result.usedProvider}!`);
+      } else {
+        alert('Search failed: ' + result.error);
+      }
+    } catch (error) {
+      alert('Search error: ' + error.message);
+    } finally {
+      setSearching(false);
+    }
+  }
+
   function handleCopyOutput() {
     if (aiOutput) {
       navigator.clipboard.writeText(aiOutput);
@@ -159,9 +187,19 @@ export default function JobDetector() {
         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
           No Job Detected
         </h3>
-        <p style={{ color: '#666', fontSize: '14px' }}>
+        <p style={{ color: '#666', fontSize: '14px', marginBottom: '16px' }}>
           Visit a job page on LinkedIn, Indeed, or Naukri to detect jobs automatically.
         </p>
+        <button
+          onClick={() => chrome.runtime.sendMessage({ action: 'startDiscovery' })}
+          style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white', padding: '12px 24px', borderRadius: '8px',
+            fontSize: '14px', fontWeight: '600', border: 'none'
+          }}
+        >
+          🌐 Search All Platforms
+        </button>
       </div>
     );
   }
@@ -170,11 +208,8 @@ export default function JobDetector() {
     <div>
       {/* Job Info Card */}
       <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        padding: '16px',
-        marginBottom: '16px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+        background: 'white', borderRadius: '12px', padding: '16px',
+        marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#333' }}>
@@ -205,80 +240,51 @@ export default function JobDetector() {
       {/* Match Score */}
       {matchResult && (
         <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '16px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          background: 'white', borderRadius: '12px', padding: '16px',
+          marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
         }}>
           <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px' }}>
             Match Analysis
           </h4>
 
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            marginBottom: '16px'
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
             <div style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
+              width: '80px', height: '80px', borderRadius: '50%',
               background: `conic-gradient(#667eea ${matchResult.score * 3.6}deg, #e0e0e0 0deg)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
               <div style={{
-                width: '68px',
-                height: '68px',
-                borderRadius: '50%',
-                background: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '20px',
-                fontWeight: '700',
-                color: '#667eea'
+                width: '68px', height: '68px', borderRadius: '50%', background: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '20px', fontWeight: '700', color: '#667eea'
               }}>
                 {matchResult.score}%
               </div>
             </div>
-
             <div>
               <div style={{
-                fontSize: '18px',
-                fontWeight: '700',
+                fontSize: '18px', fontWeight: '700',
                 color: matchResult.score >= 80 ? '#28a745' : matchResult.score >= 60 ? '#ffc107' : '#dc3545',
                 marginBottom: '4px'
               }}>
                 {matchResult.recommendation}
               </div>
-              <div style={{ fontSize: '13px', color: '#666' }}>
-                Based on your profile
-              </div>
+              <div style={{ fontSize: '13px', color: '#666' }}>Based on your profile</div>
             </div>
           </div>
 
           {matchResult.details.strongPoints.length > 0 && (
             <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                ✅ Strong Points:
-              </div>
+              <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>✅ Strong Points:</div>
               {matchResult.details.strongPoints.map((point, idx) => (
-                <div key={idx} style={{ fontSize: '12px', color: '#28a745', marginLeft: '16px' }}>
-                  • {point}
-                </div>
+                <div key={idx} style={{ fontSize: '12px', color: '#28a745', marginLeft: '16px' }}>• {point}</div>
               ))}
             </div>
           )}
 
           {matchResult.details.missingSkills.length > 0 && (
             <div>
-              <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                ⚠️ Missing Skills:
-              </div>
+              <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>⚠️ Missing Skills:</div>
               <div style={{ fontSize: '12px', color: '#dc3545', marginLeft: '16px' }}>
                 {matchResult.details.missingSkills.join(', ')}
               </div>
@@ -310,11 +316,10 @@ export default function JobDetector() {
           onClick={handleAutofill}
           disabled={!profile || applying}
           style={{
-            flex: 1,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white', padding: '14px',
-            borderRadius: '8px', fontSize: '14px', fontWeight: '600',
-            border: 'none', opacity: (!profile || applying) ? 0.5 : 1
+            flex: 1, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white', padding: '14px', borderRadius: '8px',
+            fontSize: '14px', fontWeight: '600', border: 'none',
+            opacity: (!profile || applying) ? 0.5 : 1
           }}
         >
           {applying ? 'Filling...' : '📝 Autofill'}
@@ -323,16 +328,29 @@ export default function JobDetector() {
           onClick={handleSaveApplication}
           disabled={duplicateCheck?.isDuplicate}
           style={{
-            flex: 1,
-            background: '#28a745', color: 'white',
-            padding: '14px', borderRadius: '8px',
-            fontSize: '14px', fontWeight: '600',
-            border: 'none', opacity: duplicateCheck?.isDuplicate ? 0.5 : 1
+            flex: 1, background: '#28a745', color: 'white',
+            padding: '14px', borderRadius: '8px', fontSize: '14px',
+            fontWeight: '600', border: 'none',
+            opacity: duplicateCheck?.isDuplicate ? 0.5 : 1
           }}
         >
           💾 Save
         </button>
       </div>
+
+      {/* Web Search Button */}
+      <button
+        onClick={handleSearchWeb}
+        disabled={searching}
+        style={{
+          width: '100%', padding: '10px', marginBottom: '8px',
+          background: '#17a2b8', color: 'white', border: 'none',
+          borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+          opacity: searching ? 0.5 : 1
+        }}
+      >
+        {searching ? '🔍 Searching...' : '🌐 Search Web for Similar Jobs'}
+      </button>
 
       {/* AI Actions */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
@@ -362,11 +380,8 @@ export default function JobDetector() {
       {/* AI Output */}
       {aiOutput && (
         <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '16px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          background: 'white', borderRadius: '12px', padding: '16px',
+          marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <strong style={{ fontSize: '13px' }}>
@@ -386,6 +401,36 @@ export default function JobDetector() {
             lineHeight: '1.6', maxHeight: '200px', overflow: 'auto'
           }}>
             {aiOutput}
+          </div>
+        </div>
+      )}
+
+      {/* Search Results */}
+      {searchResults && searchResults.length > 0 && (
+        <div style={{
+          background: 'white', borderRadius: '12px', padding: '16px',
+          marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+        }}>
+          <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+            Similar Jobs Found ({searchResults.length})
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {searchResults.slice(0, 5).map((job, idx) => (
+              <div key={idx} style={{
+                padding: '10px', border: '1px solid #e0e0e0', borderRadius: '8px'
+              }}>
+                <div style={{ fontSize: '13px', fontWeight: '600' }}>{job.title}</div>
+                <div style={{ fontSize: '12px', color: '#666' }}>
+                  {job.company} {job.location && `• ${job.location}`}
+                </div>
+                {job.jobUrl && (
+                  <a href={job.jobUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: '11px', color: '#667eea' }}>
+                    🔗 View Job
+                  </a>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

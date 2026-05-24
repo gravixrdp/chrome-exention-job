@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A **Chrome Extension (Manifest V3)** that automates the job application workflow on **LinkedIn**, **Indeed**, and **Naukri**. It detects job listings, calculates a profile match score (0-100), autofills application forms, tracks applications locally and in Google Sheets, and optionally uses OpenRouter AI for cover letters.
+A **Chrome Extension (Manifest V3)** that automates the job application workflow on **LinkedIn**, **Indeed**, and **Naukri**. It detects job listings, calculates a profile match score (0-100), autofills application forms, tracks applications locally and in Google Sheets, uses OpenRouter AI for cover letters, and proactively discovers new jobs through multi-provider web scraping.
 
 ## Tech Stack
 
@@ -10,172 +10,131 @@ A **Chrome Extension (Manifest V3)** that automates the job application workflow
 |-------|------|
 | Runtime | Chrome Extension Manifest V3 |
 | UI | React 19 (popup only) |
-| Build | Vite 8 + @vitejs/plugin-react |
+| Build | Vite 8 + @vitejs/plugin-react + terser |
 | Package Manager | Yarn |
 | Storage | `chrome.storage.local` + `chrome.storage.session` |
-| External APIs | Google Sheets API, OpenRouter AI API |
-| Auth | SHA-256 password hash, Chrome identity OAuth2 for Google |
+| External APIs | Google Sheets, OpenRouter AI, Scraping Providers |
+| Scraping Providers | Firecrawl, ScrapingBee, Scrape.do, Apify, ScrapingDog, Custom |
+| Auth | SHA-256 (salted) password, Chrome identity OAuth2 for Google |
 
 ## Project Structure
 
 ```
 ├── manifest.json            # MV3 manifest — permissions, content_scripts, background, OAuth2
-├── background.js            # Service worker — message hub, storage CRUD, notifications, alarms
+├── background.js            # Service worker — message hub, alarms, discovery, notifications
 ├── popup/
 │   └── popup.html           # 420x600 popup shell — mounts src/popup.jsx
 ├── content-scripts/
-│   ├── content-base.js      # Shared base for all platform content scripts
-│   ├── linkedin.js          # LinkedIn job detection + autofill
-│   ├── indeed.js            # Indeed job detection + autofill
-│   └── naukri.js            # Naukri job detection + autofill
+│   ├── content-base.js      # Shared base factory for platform scripts
+│   ├── linkedin.js          # LinkedIn job detection (delegates to content-base)
+│   ├── indeed.js            # Indeed job detection (delegates to content-base)
+│   ├── naukri.js            # Naukri job detection (delegates to content-base)
+│   └── auto-scroll.js       # Auto-scroll on search result pages
 ├── src/
 │   ├── popup.jsx            # React entry point — createRoot → <App />
-│   ├── popup.css            # Global styles — reset, scrollbar, spinner, badges, cards, alerts
+│   ├── popup.css            # Global styles
 │   ├── components/
-│   │   ├── App.jsx          # Main shell — auth gate, tab navigation (7 tabs)
-│   │   ├── LoginScreen.jsx  # Password setup/unlock screen
-│   │   ├── Dashboard.jsx    # Stats: found, applied, duplicates, avg match, follow-ups
-│   │   ├── ProfileManager.jsx # Professional profile form (name, skills, CTC, roles, etc.)
-│   │   ├── ResumeManager.jsx  # Resume metadata tracking (no file upload — browser security)
-│   │   ├── QAManager.jsx    # Q&A bank — 14 pre-filled + custom questions
-│   │   ├── JobDetector.jsx  # Current job display, match score, duplicate warning, actions
-│   │   ├── ApplicationTracker.jsx # Application list with status filter + CRUD
-│   │   └── Settings.jsx     # General, security, Google Sheets, AI config
+│   │   ├── App.jsx          # Main shell — auth gate, 8-tab navigation
+│   │   ├── LoginScreen.jsx  # Password setup/unlock
+│   │   ├── Dashboard.jsx    # Stats, discovery status, quick actions
+│   │   ├── ProfileManager.jsx # Professional profile form
+│   │   ├── ResumeManager.jsx  # Resume metadata tracking
+│   │   ├── QAManager.jsx    # Q&A bank
+│   │   ├── JobDetector.jsx  # Current job, match score, AI, web search
+│   │   ├── JobSearch.jsx    # Web job search via scraping API
+│   │   ├── ApplicationTracker.jsx # Application CRUD + filter
+│   │   └── Settings.jsx     # General, security, Sheets, AI, scraping, discovery
 │   └── services/
-│       ├── detector.js      # Platform detection, job page URL matching, DOM extraction
+│       ├── detector.js      # Platform detection, job/card extraction
 │       ├── matcher.js       # calculateMatchScore (weighted), selectBestResume
-│       ├── autofill.js      # AutofillEngine class — fills forms by label matching
-│       ├── auth.js         # Password hash (SHA-256 + salt), setup, verify, lock/unlock
-│       ├── storage.js       # CRUD wrapper over chrome.storage.local
-│       ├── sheets.js        # Google Sheets OAuth connect, sync, duplicate check
-│       └── ai.js           # OpenRouter AI — cover letter, answer improvement, summary
+│       ├── autofill.js      # AutofillEngine class
+│       ├── auth.js         # Salted SHA-256 password hash
+│       ├── storage.js       # CRUD over chrome.storage.local
+│       ├── sheets.js        # Google Sheets OAuth, sync, duplicate check
+│       ├── ai.js           # OpenRouter AI — cover letter, summary, skills
+│       ├── providers.js     # Scraping provider config constants
+│       ├── scraping.js      # Multi-provider scraping with fallback
+│       └── discovery.js     # Auto job discovery engine
 ├── assets/icons/          # Extension icons (16, 48, 128)
-├── vite.config.js         # Vite build config — outputs to /dist
-└── post-build.js          # Post-build — copies manifest.json, assets, background.js to /dist
+├── vite.config.js         # Vite build config
+└── post-build.js          # Post-build — copies manifest, assets, organizes content-scripts/
 ```
 
-## How It Works — End-to-End Flow
+## Key Flows
 
-### 1. User Installs Extension
-- Load `/dist` folder in `chrome://extensions` (Developer Mode)
-
-### 2. First Launch — Password Setup
-- Open popup → LoginScreen.jsx → SHA-256 hash password stored in `chrome.storage.local`
-
-### 3. User Fills Profile
-- ProfileManager.jsx → saved via `storage.saveProfile()` → `chrome.storage.local`
-
-### 4. User Browses Job Sites (LinkedIn / Indeed / Naukri)
+### 1. Job Detection (Manual)
 ```
-User visits job page
-  → Content script matches URL (manifest.json host_permissions)
-  → content script init() calls extract*JobData() (detector.js)
-  → DOM scraped via CSS selectors for title, company, location, salary, description
-  → Floating "Job Detected" button injected on page
-  → chrome.runtime.sendMessage('jobDetected') to background.js
-  → background.js checks filters → shows notification if job matches
+User visits job detail page
+  → Content script (content-base.js) detects via isJobPage()
+  → extract*JobData() scrapes DOM
+  → "Job Detected" button injected
+  → background.js notified → filter match → notification
 ```
 
-### 5. User Opens Extension Popup
+### 2. Job Detection (Auto-Scroll)
 ```
-JobDetector.jsx reads chrome.storage.session for current job
-  → calculateMatchScore(job, profile, filters) from matcher.js
-  → Scoring: Skills(30) + Experience(25) + Location(15) + Salary(15) + WorkMode(10) + Role(5) = 100
-  → checkDuplicate in local storage + Google Sheets
-  → Display: match %, strong points, missing skills, duplicate warning
-```
-
-### 6. Autofill
-```
-User clicks "Autofill Application"
-  → chrome.tabs.sendMessage to active tab's content script
-  → Content script creates AutofillEngine(profile, qaBank, selectedResume)
-  → Engine scans form fields by label/placeholder/name/id
-  → Fills text inputs, textareas, selects, radios, checkboxes
-  → Dispatches input + change events for React/DOM frameworks
-  → Highlights filled fields in green
+User visits search results page (e.g., linkedin.com/jobs/search)
+  → auto-scroll.js injects, starts scrolling
+  → MutationObserver detects new job cards
+  → Cards extracted via extractJobCardFrom*()
+  → Results stored in chrome.storage.session
+  → Control bar shows count + pause/stop
 ```
 
-### 7. Save Application
+### 3. Web Job Search (Scraping API)
 ```
-User clicks "Save Application"
-  → chrome.runtime.sendMessage('saveApplication') to background.js
-  → background.js saves to chrome.storage.local + Google Sheets
-  → Shows notification
-```
-
-### 8. Follow-up Reminders
-```
-chrome.alarms creates 'checkFollowUps' alarm (60 min period)
-  → Every hour: filters applications where followUpDate == today
-  → Pushes Chrome notification
+User clicks "Search Web" or "Search All Platforms"
+  → scraping.js tries providers by priority (Firecrawl → ScrapingBee → ...)
+  → If one fails, tries next provider automatically
+  → Results normalized and displayed in JobSearch tab
+  → User can save jobs to tracker
 ```
 
-## Key Data Models
-
-### Profile
-```js
-{
-  fullName, email, phone, location,
-  linkedinUrl, portfolioUrl, githubUrl,
-  skills: string[],           // e.g. ["React", "Node.js", "AWS"]
-  experience,                   // e.g. "3 years"
-  currentCompany, currentCTC, expectedCTC, noticePeriod,
-  preferredRoles: string[],     // e.g. ["Frontend Developer", "Full Stack"]
-  preferredLocations: string[], // e.g. ["Bangalore", "Remote"]
-  workModePreference          // "Remote" | "Hybrid" | "Onsite" | "Any"
-}
+### 4. Auto Discovery
+```
+chrome.alarms('autoDiscovery') fires at configured interval (30m/2h/6h) or on-demand
+  → discovery.js builds search URLs from user profile
+  → scraping.js fetches via configured providers
+  → Results diffed against existing applications
+  → User notified of new matching jobs
 ```
 
-### Application
-```js
-{
-  id, date, platform, title, company, location,
-  jobUrl, matchScore, status, resumeUsed, notes, followUpDate
-}
-// status: "Saved" | "Applied" | "Interview" | "Offer" | "Rejected" | "Skipped"
+### 5. Match Score
 ```
-
-### Match Score Result
-```js
-{
-  score: 0-100,
-  recommendation: "Strong Match" | "Average Match" | "Weak Match",
-  details: {
-    skillsMatch, experienceMatch, locationMatch,
-    salaryMatch, workModeMatch, roleMatch,
-    missingSkills: string[], strongPoints: string[]
-  }
-}
+calculateMatchScore(job, profile, filters):
+  Skills(30) + Experience(25) + Location(15) + Salary(15) + WorkMode(10) + Role(5) = 100
+  Returns: score, recommendation, strongPoints[], missingSkills[]
 ```
 
 ## Communication Channels
 
 | Channel | Direction | Purpose |
 |---------|-----------|---------|
-| `chrome.runtime.onMessage` | Content → Background | `jobDetected`, `checkDuplicate`, `saveApplication` |
-| `chrome.runtime.onMessage` | Background → Content | `getAuthToken`, `revokeAuthToken`, `resetInactivityTimer` |
-| `chrome.tabs.sendMessage` | Popup → Content Script | `autofillForm`, `getCurrentJob` |
-| `chrome.storage.local` | Persistent | Profile, resumes, Q&A, applications, settings, filters |
-| `chrome.storage.session` | Session-only | Lock state, current job data |
+| `chrome.runtime.onMessage` | Content ↔ Background | `jobDetected`, `scrollJobsFound`, `checkDuplicate`, `saveApplication`, `startDiscovery` |
+| `chrome.tabs.sendMessage` | Popup → Content Script | `autofillForm`, `getCurrentJob`, `startScroll`, `stopScroll` |
+| `chrome.storage.local` | Persistent | Profile, resumes, Q&A, applications, settings, filters, scraping providers |
+| `chrome.storage.session` | Session-only | Lock state, current job, scroll detected jobs, discovery results |
 
 ## Required Configuration
 
-1. **manifest.json `oauth2.client_id`** — Replace `YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com` with real Google OAuth client ID
+1. **manifest.json `oauth2.client_id`** — Replace with real Google OAuth client ID
 2. **Google Sheets** — Create spreadsheet, paste ID in Settings
-3. **OpenRouter AI (optional)** — API key in Settings for AI features
+3. **OpenRouter AI (optional)** — API key in Settings
+4. **Scraping Providers** — Add API keys for Firecrawl, ScrapingBee, etc. in Settings
+5. **Auto Discovery** — Enable and set interval (on-demand / 30 min / 2 hours / 6 hours)
 
 ## Build Commands
 
 ```bash
 yarn install        # Install dependencies
-yarn build          # Build to /dist (vite build + post-build.js copies assets)
+yarn build          # Build to /dist (vite build + post-build.js)
 ```
 
 ## Known Limitations
 
-- Resume upload cannot be automated (browser security — file input requires user interaction)
+- Resume upload cannot be automated (browser security)
 - Captcha cannot be bypassed
-- CSS selectors in detector.js are fragile — platforms may break detection on layout changes
-- All data lives in `chrome.storage.local` — no cross-device sync (Chrome Sync not used)
+- CSS selectors are fragile — platforms may break detection on layout changes
+- Scraping API requires external provider (configurable, user provides API key)
+- All data in `chrome.storage.local` — no cross-device sync
 - No tests

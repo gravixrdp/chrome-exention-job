@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getApplications, getProfile } from '../services/storage';
+import { getDiscoveryInfo } from '../services/discovery';
 
 export default function Dashboard({ onNavigate }) {
   const [stats, setStats] = useState({
@@ -12,6 +13,7 @@ export default function Dashboard({ onNavigate }) {
   const [recentApps, setRecentApps] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [discoveryInfo, setDiscoveryInfo] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -21,11 +23,13 @@ export default function Dashboard({ onNavigate }) {
     try {
       const applications = await getApplications();
       const userProfile = await getProfile();
+      const discovery = await getDiscoveryInfo();
       setProfile(userProfile);
+      setDiscoveryInfo(discovery);
 
       const applied = applications.filter(app => app.status === 'Applied');
       const duplicates = applications.filter(app => app.status === 'Duplicate');
-      
+
       const matchScores = applications
         .filter(app => app.matchScore)
         .map(app => app.matchScore);
@@ -34,7 +38,7 @@ export default function Dashboard({ onNavigate }) {
         : 0;
 
       const today = new Date().toISOString().split('T')[0];
-      const followUps = applications.filter(app => 
+      const followUps = applications.filter(app =>
         app.followUpDate === today && app.status !== 'Rejected'
       );
 
@@ -54,6 +58,23 @@ export default function Dashboard({ onNavigate }) {
     }
   }
 
+  async function handleSearchNow() {
+    setLoading(true);
+    try {
+      const result = await chrome.runtime.sendMessage({
+        action: 'startDiscovery'
+      });
+      if (result?.success) {
+        alert(`Discovery complete! Found ${result.totalFound} jobs, ${result.newJobs} new.`);
+      }
+      loadData();
+    } catch (error) {
+      alert('Discovery failed: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
@@ -64,10 +85,7 @@ export default function Dashboard({ onNavigate }) {
 
   if (!profile) {
     return (
-      <div style={{
-        textAlign: 'center',
-        padding: '40px 20px'
-      }}>
+      <div style={{ textAlign: 'center', padding: '40px 20px' }}>
         <div style={{ fontSize: '48px', marginBottom: '16px' }}>👤</div>
         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>Setup Your Profile</h3>
         <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
@@ -77,12 +95,8 @@ export default function Dashboard({ onNavigate }) {
           onClick={() => onNavigate('profile')}
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            border: 'none'
+            color: 'white', padding: '12px 24px', borderRadius: '8px',
+            fontSize: '14px', fontWeight: '600', border: 'none'
           }}
         >
           Create Profile
@@ -107,9 +121,7 @@ export default function Dashboard({ onNavigate }) {
           { label: 'Avg Match', value: `${stats.avgMatchScore}%`, color: '#17a2b8', icon: '📊' }
         ].map((stat, idx) => (
           <div key={idx} style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '16px',
+            background: 'white', borderRadius: '12px', padding: '16px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
           }}>
             <div style={{ fontSize: '24px', marginBottom: '8px' }}>{stat.icon}</div>
@@ -121,6 +133,13 @@ export default function Dashboard({ onNavigate }) {
         ))}
       </div>
 
+      {/* Discovery Status */}
+      {discoveryInfo?.hasResults && (
+        <div className="alert alert-info" style={{ marginBottom: '12px', fontSize: '12px' }}>
+          🌐 Last discovery: {new Date(discoveryInfo.timestamp).toLocaleString()} — {discoveryInfo.results.length} jobs cached
+        </div>
+      )}
+
       {/* Follow-ups Due */}
       {stats.followUpsDue > 0 && (
         <div className="alert alert-warning" style={{ marginBottom: '20px' }}>
@@ -131,36 +150,36 @@ export default function Dashboard({ onNavigate }) {
       {/* Quick Actions */}
       <div style={{ marginBottom: '20px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>Quick Actions</h3>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
-            onClick={() => onNavigate('job')}
+            onClick={() => onNavigate('search')}
             style={{
-              flex: 1,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              padding: '12px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '600',
-              border: 'none'
+              flex: 1, background: '#667eea', color: 'white',
+              padding: '12px', borderRadius: '8px', fontSize: '13px',
+              fontWeight: '600', border: 'none'
             }}
           >
-            📍 Detect Job
+            🌐 Search Jobs
+          </button>
+          <button
+            onClick={handleSearchNow}
+            style={{
+              flex: 1, background: '#28a745', color: 'white',
+              padding: '12px', borderRadius: '8px', fontSize: '13px',
+              fontWeight: '600', border: 'none'
+            }}
+          >
+            🔍 Search Now
           </button>
           <button
             onClick={() => onNavigate('tracker')}
             style={{
-              flex: 1,
-              background: '#28a745',
-              color: 'white',
-              padding: '12px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '600',
-              border: 'none'
+              flex: 1, background: '#17a2b8', color: 'white',
+              padding: '12px', borderRadius: '8px', fontSize: '13px',
+              fontWeight: '600', border: 'none'
             }}
           >
-            📝 View Tracker
+            📝 Tracker
           </button>
         </div>
       </div>
@@ -170,21 +189,16 @@ export default function Dashboard({ onNavigate }) {
         <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>Recent Applications</h3>
         {recentApps.length === 0 ? (
           <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            textAlign: 'center',
-            color: '#666'
+            background: 'white', borderRadius: '12px', padding: '24px',
+            textAlign: 'center', color: '#666'
           }}>
-            No applications yet. Visit a job page to get started!
+            No applications yet. Visit a job page or search to get started!
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {recentApps.map(app => (
               <div key={app.id} style={{
-                background: 'white',
-                borderRadius: '8px',
-                padding: '12px',
+                background: 'white', borderRadius: '8px', padding: '12px',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>

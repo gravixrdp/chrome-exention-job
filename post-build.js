@@ -48,14 +48,18 @@ fs.copyFileSync(
 );
 
 // Organize content scripts into content-scripts/ subdirectory
-// Vite outputs: dist/linkedin.js, dist/indeed.js, dist/naukri.js
-// Manifest expects: content-scripts/linkedin.js, etc.
 const contentScriptsDir = path.join(distDir, 'content-scripts');
 fs.mkdirSync(contentScriptsDir, { recursive: true });
 
-for (const name of ['linkedin', 'indeed', 'naukri']) {
-  const srcFile = path.join(distDir, `${name}.js`);
-  const destFile = path.join(contentScriptsDir, `${name}.js`);
+// Vite outputs: dist/linkedin.js, dist/indeed.js, dist/naukri.js, dist/autoscroll.js
+for (const [srcName, destName] of [
+  ['linkedin', 'linkedin'],
+  ['indeed', 'indeed'],
+  ['naukri', 'naukri'],
+  ['autoscroll', 'auto-scroll']
+]) {
+  const srcFile = path.join(distDir, `${srcName}.js`);
+  const destFile = path.join(contentScriptsDir, `${destName}.js`);
   if (fs.existsSync(srcFile)) {
     fs.renameSync(srcFile, destFile);
   }
