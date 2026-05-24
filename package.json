@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node post-build.js",
+    "dev:watch": "node dev-watch.js",
     "preview": "vite preview"
   },
   "keywords": [
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.2",
     "terser": "^5.39.0",
+    "chokidar": "^4.0.3",
     "vite": "^8.0.13"
   }
 }
