@@ -278,7 +278,7 @@ async function getServiceAccountTokenHandler(serviceAccountJson) {
       : serviceAccountJson;
 
     const { cleanPemKey, importRsaKey, createJwt, exchangeJwtForToken } =
-      await import('src/services/sheets-auth.js');
+      await import('@/services/sheets-auth.js');
 
     // We need to call these from the module, but they're not exported as a namespace
     // So let's do the work directly here
@@ -495,7 +495,7 @@ async function startDiscovery() {
     }
 
     // Import discovery service dynamically
-    const { discoverJobs, checkForNewJobs, notifyNewJobs } = await import('src/services/discovery.js');
+    const { discoverJobs, checkForNewJobs, notifyNewJobs } = await import('@/services/discovery.js');
     const result = await discoverJobs(profile);
     const allJobs = result.platforms.flatMap(p => p.jobs);
     const newJobs = await checkForNewJobs(allJobs);
