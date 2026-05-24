@@ -183,7 +183,41 @@ Automatic — works on LinkedIn feed/post pages, no configuration needed
 - **AI semantic matching** — requires internet + API key
 - **Hiring post detection** — LinkedIn only, limited to visible feed posts
 
-## Best Practices
+## Development Workflow
+
+### Setup (One-Time on Local PC)
+1. Clone repo locally
+2. Build: `yarn install && yarn build`
+3. Chrome: `chrome://extensions/` → Developer mode → Load unpacked → select `/dist`
+4. Chrome: `chrome://extensions/` → **Extension reload notifications** → ON
+5. Chrome: `chrome://flags/#extensions-on-update-behavior` → select **Update**
+
+### Daily Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  VPS (SSH)                          Local PC                         │
+│  ┌─────────────────────────┐      ┌────────────────────────────────┐ │
+│  │ AI agent codes changes  │      │ Extension loaded from /dist    │ │
+│  │ yarn dev:watch          │      │ Auto-reloads on file change    │ │
+│  │ yarn build              │      └───────────┬───────────────────┘ │
+│  │ git add .              │                    │                      │
+│  │ git commit             │    GitHub          │                      │
+│  │ git push               │◄───push/pull───────┤                      │
+│  └─────────────────────────┘    ┌──────────────┴───────────────────┐  │
+│                                  │ ./local-sync or:                 │  │
+│                                  │ git pull && yarn build           │  │
+│                                  │ Chrome auto-reloads ✅           │  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Local PC: Quick Sync Command
+```bash
+git pull && yarn build
+```
+Chrome auto-reloads if Chrome settings are enabled (steps 4-5 above). If not, manually click refresh icon on `chrome://extensions/`.
+
+### Best Practices
 
 1. **Always review before submit** — autofill is smart but not perfect
 2. **Keep profile updated** — update skills, CTC, notice period regularly
