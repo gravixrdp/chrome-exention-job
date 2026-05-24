@@ -16,6 +16,8 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState('');
   const [testingProvider, setTestingProvider] = useState(null);
   const [providerStatus, setProviderStatus] = useState({});
+  const [testingAI, setTestingAI] = useState({ openrouter: false, excloud: false });
+  const [aiStatus, setAiStatus] = useState({ openrouter: null, excloud: null });
 
   // Sheets config state
   const [sheetsConfig, setSheetsConfig] = useState(null);
@@ -78,6 +80,61 @@ export default function Settings() {
     await saveAIConfig({ enabled: true, apiKey, excloudApiKey: aiConfig?.excloudApiKey || '' });
     alert('AI keys saved!');
     loadSettings();
+  }
+
+  async function handleTestAI(providerId) {
+    setTestingAI(prev => ({ ...prev, [providerId]: true }));
+    setAiStatus(prev => ({ ...prev, [providerId]: null }));
+
+    const key = providerId === 'openrouter' ? apiKey : aiConfig?.excloudApiKey;
+    if (!key) {
+      setAiStatus(prev => ({ ...prev, [providerId]: { error: 'No API key set' } }));
+      setTestingAI(prev => ({ ...prev, [providerId]: false }));
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        providerId === 'openrouter'
+          ? 'https://openrouter.ai/api/v1/chat/completions'
+          : 'https://llm.excloud.dev/v1/messages',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            ...(providerId === 'openrouter' && {
+              'HTTP-Referer': chrome.runtime.getURL('popup/popup.html')
+            })
+          },
+          body: JSON.stringify({
+            model: providerId === 'openrouter'
+              ? 'mistralai/mistral-7b-instruct:free'
+              : 'Qwen/Qwen3.6-27B:excloud',
+            messages: [
+              { role: 'system', content: 'Reply to this test message with a short greeting.' },
+              { role: 'user', content: 'hy' }
+            ],
+            max_tokens: 30
+          })
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        setAiStatus(prev => ({ ...prev, [providerId]: { error: `${res.status} — ${text.substring(0, 100)}` } }));
+      } else {
+        const data = await res.json();
+        const reply = providerId === 'openrouter'
+          ? data?.choices?.[0]?.message?.content
+          : (data.content || []).find(c => c.type === 'text')?.text;
+        setAiStatus(prev => ({ ...prev, [providerId]: { success: true, reply: reply || '(empty response)' } }));
+      }
+    } catch (error) {
+      setAiStatus(prev => ({ ...prev, [providerId]: { error: error.message } }));
+    }
+
+    setTestingAI(prev => ({ ...prev, [providerId]: false }));
   }
 
   // --- Sheets Config Handlers ---
@@ -409,16 +466,36 @@ export default function Settings() {
           <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', display: 'block' }}>
             Excloud API
           </label>
-          <input
-            type="password"
-            value={aiConfig?.excloudApiKey || ''}
-            onChange={(e) => setAiConfig({ ...aiConfig, enabled: true, excloudApiKey: e.target.value })}
-            placeholder="sxkHkNBFWOnRPTU9oFcFZ..."
-            style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', marginBottom: '8px' }}
-          />
-          {aiConfig?.excloudApiKey && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+            <input
+              type="password"
+              value={aiConfig?.excloudApiKey || ''}
+              onChange={(e) => setAiConfig({ ...aiConfig, enabled: true, excloudApiKey: e.target.value })}
+              placeholder="sxkHkNBFWOnRPTU9oFcFZ..."
+              style={{ flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
+            />
+            <button
+              onClick={() => handleTestAI('excloud')}
+              disabled={testingAI.excloud}
+              style={{
+                padding: '10px 14px',
+                background: aiStatus.excloud?.success ? '#28a745' : aiStatus.excloud?.error ? '#dc3545' : '#667eea',
+                color: 'white',
+                border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600',
+                cursor: testingAI.excloud ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {testingAI.excloud ? '...' : '⚡ Test'}
+            </button>
+          </div>
+          {aiStatus.excloud?.success && (
             <div className="alert alert-success" style={{ fontSize: '12px' }}>
-              ✅ Excloud configured
+              ✅ AI working! Reply: {aiStatus.excloud.reply}
+            </div>
+          )}
+          {aiStatus.excloud?.error && (
+            <div className="alert alert-danger" style={{ fontSize: '12px' }}>
+              ❌ {aiStatus.excloud.error}
             </div>
           )}
         </div>
@@ -428,16 +505,36 @@ export default function Settings() {
           <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', display: 'block' }}>
             OpenRouter API (Fallback)
           </label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Enter OpenRouter API key"
-            style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', marginBottom: '8px' }}
-          />
-          {aiConfig?.enabled && aiConfig.apiKey && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Enter OpenRouter API key"
+              style={{ flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
+            />
+            <button
+              onClick={() => handleTestAI('openrouter')}
+              disabled={testingAI.openrouter}
+              style={{
+                padding: '10px 14px',
+                background: aiStatus.openrouter?.success ? '#28a745' : aiStatus.openrouter?.error ? '#dc3545' : '#667eea',
+                color: 'white',
+                border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600',
+                cursor: testingAI.openrouter ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {testingAI.openrouter ? '...' : '⚡ Test'}
+            </button>
+          </div>
+          {aiStatus.openrouter?.success && (
             <div className="alert alert-success" style={{ fontSize: '12px' }}>
-              ✅ OpenRouter configured
+              ✅ AI working! Reply: {aiStatus.openrouter.reply}
+            </div>
+          )}
+          {aiStatus.openrouter?.error && (
+            <div className="alert alert-danger" style={{ fontSize: '12px' }}>
+              ❌ {aiStatus.openrouter.error}
             </div>
           )}
         </div>
