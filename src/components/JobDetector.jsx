@@ -193,7 +193,7 @@ export default function JobDetector() {
         <button
           onClick={() => chrome.runtime.sendMessage({ action: 'startDiscovery' })}
           style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: '#000',
             color: 'white', padding: '12px 24px', borderRadius: '8px',
             fontSize: '14px', fontWeight: '600', border: 'none'
           }}
@@ -250,13 +250,13 @@ export default function JobDetector() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
             <div style={{
               width: '80px', height: '80px', borderRadius: '50%',
-              background: `conic-gradient(#667eea ${matchResult.score * 3.6}deg, #e0e0e0 0deg)`,
+              background: `conic-gradient(#000 ${matchResult.score * 3.6}deg, #e0e0e0 0deg)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
               <div style={{
                 width: '68px', height: '68px', borderRadius: '50%', background: 'white',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '20px', fontWeight: '700', color: '#667eea'
+                fontSize: '20px', fontWeight: '700', color: '#000'
               }}>
                 {matchResult.score}%
               </div>
@@ -264,7 +264,7 @@ export default function JobDetector() {
             <div>
               <div style={{
                 fontSize: '18px', fontWeight: '700',
-                color: matchResult.score >= 80 ? '#28a745' : matchResult.score >= 60 ? '#ffc107' : '#dc3545',
+                color: matchResult.score >= 80 ? '#000' : matchResult.score >= 60 ? '#888' : '#cc0000',
                 marginBottom: '4px'
               }}>
                 {matchResult.recommendation}
@@ -277,7 +277,7 @@ export default function JobDetector() {
             <div style={{ marginBottom: '12px' }}>
               <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>✅ Strong Points:</div>
               {matchResult.details.strongPoints.map((point, idx) => (
-                <div key={idx} style={{ fontSize: '12px', color: '#28a745', marginLeft: '16px' }}>• {point}</div>
+                <div key={idx} style={{ fontSize: '12px', color: '#333', marginLeft: '16px' }}>• {point}</div>
               ))}
             </div>
           )}
@@ -285,7 +285,7 @@ export default function JobDetector() {
           {matchResult.details.missingSkills.length > 0 && (
             <div>
               <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>⚠️ Missing Skills:</div>
-              <div style={{ fontSize: '12px', color: '#dc3545', marginLeft: '16px' }}>
+              <div style={{ fontSize: '12px', color: '#cc0000', marginLeft: '16px' }}>
                 {matchResult.details.missingSkills.join(', ')}
               </div>
             </div>
@@ -316,7 +316,7 @@ export default function JobDetector() {
           onClick={handleAutofill}
           disabled={!profile || applying}
           style={{
-            flex: 1, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            flex: 1, background: '#000',
             color: 'white', padding: '14px', borderRadius: '8px',
             fontSize: '14px', fontWeight: '600', border: 'none',
             opacity: (!profile || applying) ? 0.5 : 1
@@ -328,7 +328,7 @@ export default function JobDetector() {
           onClick={handleSaveApplication}
           disabled={duplicateCheck?.isDuplicate}
           style={{
-            flex: 1, background: '#28a745', color: 'white',
+            flex: 1, background: '#000', color: 'white',
             padding: '14px', borderRadius: '8px', fontSize: '14px',
             fontWeight: '600', border: 'none',
             opacity: duplicateCheck?.isDuplicate ? 0.5 : 1
@@ -344,7 +344,7 @@ export default function JobDetector() {
         disabled={searching}
         style={{
           width: '100%', padding: '10px', marginBottom: '8px',
-          background: '#17a2b8', color: 'white', border: 'none',
+          background: '#666', color: 'white', border: 'none',
           borderRadius: '8px', fontSize: '13px', fontWeight: '600',
           opacity: searching ? 0.5 : 1
         }}
@@ -357,21 +357,21 @@ export default function JobDetector() {
         <button
           onClick={() => handleAI('coverLetter')}
           disabled={aiLoading === 'coverLetter'}
-          style={{ flex: 1, padding: '8px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
+          style={{ flex: 1, padding: '8px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
         >
           {aiLoading === 'coverLetter' ? '⏳' : '📄 Cover Letter'}
         </button>
         <button
           onClick={() => handleAI('summary')}
           disabled={aiLoading === 'summary'}
-          style={{ flex: 1, padding: '8px', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
+          style={{ flex: 1, padding: '8px', background: '#666', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
         >
           {aiLoading === 'summary' ? '⏳' : '📋 Summary'}
         </button>
         <button
           onClick={() => handleAI('skills')}
           disabled={aiLoading === 'skills'}
-          style={{ flex: 1, padding: '8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
+          style={{ flex: 1, padding: '8px', background: '#333', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}
         >
           {aiLoading === 'skills' ? '⏳' : '🧠 Skills'}
         </button>
@@ -390,7 +390,7 @@ export default function JobDetector() {
               {aiView === 'skills' && 'Suggested Skills'}
             </strong>
             <button onClick={handleCopyOutput} style={{
-              padding: '4px 8px', background: '#e7eaf6', color: '#667eea',
+              padding: '4px 8px', background: '#f0f0f0', color: '#000',
               border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer'
             }}>
               📋 Copy
@@ -425,7 +425,7 @@ export default function JobDetector() {
                 </div>
                 {job.jobUrl && (
                   <a href={job.jobUrl} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: '11px', color: '#667eea' }}>
+                    style={{ fontSize: '11px', color: '#000' }}>
                     🔗 View Job
                   </a>
                 )}

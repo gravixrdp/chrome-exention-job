@@ -94,7 +94,7 @@ export default function Dashboard({ onNavigate }) {
         <button
           onClick={() => onNavigate('profile')}
           style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: '#000',
             color: 'white', padding: '12px 24px', borderRadius: '8px',
             fontSize: '14px', fontWeight: '600', border: 'none'
           }}
@@ -115,10 +115,10 @@ export default function Dashboard({ onNavigate }) {
         marginBottom: '20px'
       }}>
         {[
-          { label: 'Total Found', value: stats.totalFound, color: '#667eea', icon: '🔍' },
-          { label: 'Applied', value: stats.totalApplied, color: '#28a745', icon: '✅' },
-          { label: 'Duplicates', value: stats.duplicatesSkipped, color: '#ffc107', icon: '⚠️' },
-          { label: 'Avg Match', value: `${stats.avgMatchScore}%`, color: '#17a2b8', icon: '📊' }
+          { label: 'Total Found', value: stats.totalFound, color: '#000', icon: '🔍' },
+          { label: 'Applied', value: stats.totalApplied, color: '#333', icon: '✅' },
+          { label: 'Duplicates', value: stats.duplicatesSkipped, color: '#888', icon: '⚠️' },
+          { label: 'Avg Match', value: `${stats.avgMatchScore}%`, color: '#666', icon: '📊' }
         ].map((stat, idx) => (
           <div key={idx} style={{
             background: 'white', borderRadius: '12px', padding: '16px',
@@ -154,7 +154,7 @@ export default function Dashboard({ onNavigate }) {
           <button
             onClick={() => onNavigate('search')}
             style={{
-              flex: 1, background: '#667eea', color: 'white',
+              flex: 1, background: '#000', color: 'white',
               padding: '12px', borderRadius: '8px', fontSize: '13px',
               fontWeight: '600', border: 'none'
             }}
@@ -164,7 +164,7 @@ export default function Dashboard({ onNavigate }) {
           <button
             onClick={handleSearchNow}
             style={{
-              flex: 1, background: '#28a745', color: 'white',
+              flex: 1, background: '#333', color: 'white',
               padding: '12px', borderRadius: '8px', fontSize: '13px',
               fontWeight: '600', border: 'none'
             }}
@@ -174,7 +174,7 @@ export default function Dashboard({ onNavigate }) {
           <button
             onClick={() => onNavigate('tracker')}
             style={{
-              flex: 1, background: '#17a2b8', color: 'white',
+              flex: 1, background: '#666', color: 'white',
               padding: '12px', borderRadius: '8px', fontSize: '13px',
               fontWeight: '600', border: 'none'
             }}
@@ -213,7 +213,7 @@ export default function Dashboard({ onNavigate }) {
                   {app.company} • {app.platform}
                 </div>
                 {app.matchScore && (
-                  <div style={{ fontSize: '11px', color: '#667eea', marginTop: '4px' }}>
+                  <div style={{ fontSize: '11px', color: '#000', marginTop: '4px' }}>
                     Match: {app.matchScore}%
                   </div>
                 )}

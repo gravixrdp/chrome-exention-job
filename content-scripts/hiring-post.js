@@ -46,7 +46,7 @@ function injectBadge() {
   statusBadge.id = 'hiring-detector-badge';
   statusBadge.style.cssText = `
     position: fixed; bottom: 20px; left: 20px; z-index: 10000;
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    background: #000;
     color: white; padding: 12px 18px; border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -137,8 +137,8 @@ function highlightPost(article, data) {
   // Add green border to hiring post
   const container = article.closest('[data-urn]') || article;
   if (container) {
-    container.style.border = '2px solid #28a745';
-    container.style.backgroundColor = '#f0fff4';
+    container.style.border = '2px solid #000';
+    container.style.backgroundColor = '#f5f5f5';
     container.style.borderRadius = '8px';
     container.style.transition = 'all 0.3s ease';
 
@@ -146,7 +146,7 @@ function highlightPost(article, data) {
     const badge = document.createElement('div');
     badge.id = 'hiring-badge';
     badge.style.cssText = `
-      background: #28a745; color: white; padding: 6px 12px;
+      background: #000; color: white; padding: 6px 12px;
       border-radius: 6px; font-size: 12px; font-weight: 600;
       margin-top: 8px; display: inline-block;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

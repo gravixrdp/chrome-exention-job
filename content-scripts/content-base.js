@@ -33,7 +33,7 @@ function createContentScript({ platform, extractJobData, isJobPage }) {
         position: fixed;
         top: 100px; right: 20px;
         z-index: 10000;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #000;
         color: white; padding: 15px 20px;
         border-radius: 12px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -68,7 +68,7 @@ function createContentScript({ platform, extractJobData, isJobPage }) {
     const el = document.createElement('div');
     el.style.cssText = `
       position: fixed; top: 20px; right: 20px;
-      background: #4CAF50; color: white;
+      background: #000; color: white;
       padding: 15px 20px; border-radius: 8px;
       z-index: 10001;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

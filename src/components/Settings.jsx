@@ -305,7 +305,7 @@ export default function Settings() {
           </label>
         </div>
 
-        <button onClick={handleSaveSettings} style={{ width: '100%', padding: '10px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
+        <button onClick={handleSaveSettings} style={{ width: '100%', padding: '10px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
           Save Settings
         </button>
       </div>
@@ -313,7 +313,7 @@ export default function Settings() {
       {/* Security */}
       <div style={{ background: 'white', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
         <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Security</h3>
-        <button onClick={handleChangePassword} style={{ width: '100%', padding: '10px', background: '#ffc107', color: '#333', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
+        <button onClick={handleChangePassword} style={{ width: '100%', padding: '10px', background: '#888', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
           🔒 Change Password
         </button>
       </div>
@@ -427,13 +427,13 @@ export default function Settings() {
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
           <button
             onClick={handleTestConnection}
-            style={{ flex: 1, padding: '10px', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
+            style={{ flex: 1, padding: '10px', background: '#666', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
           >
             🔌 Test
           </button>
           <button
             onClick={handleSaveSheetsConfig}
-            style={{ flex: 1, padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
+            style={{ flex: 1, padding: '10px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
           >
             💾 Save
           </button>
@@ -446,7 +446,7 @@ export default function Settings() {
             </div>
             <button
               onClick={handleDisconnectSheets}
-              style={{ width: '100%', padding: '8px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px' }}
+              style={{ width: '100%', padding: '8px', background: '#cc0000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px' }}
             >
               Disconnect
             </button>
@@ -479,7 +479,7 @@ export default function Settings() {
               disabled={testingAI.excloud}
               style={{
                 padding: '10px 14px',
-                background: aiStatus.excloud?.success ? '#28a745' : aiStatus.excloud?.error ? '#dc3545' : '#667eea',
+                background: aiStatus.excloud?.success ? '#000' : aiStatus.excloud?.error ? '#cc0000' : '#000',
                 color: 'white',
                 border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600',
                 cursor: testingAI.excloud ? 'not-allowed' : 'pointer'
@@ -518,7 +518,7 @@ export default function Settings() {
               disabled={testingAI.openrouter}
               style={{
                 padding: '10px 14px',
-                background: aiStatus.openrouter?.success ? '#28a745' : aiStatus.openrouter?.error ? '#dc3545' : '#667eea',
+                background: aiStatus.openrouter?.success ? '#000' : aiStatus.openrouter?.error ? '#cc0000' : '#000',
                 color: 'white',
                 border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600',
                 cursor: testingAI.openrouter ? 'not-allowed' : 'pointer'
@@ -539,7 +539,7 @@ export default function Settings() {
           )}
         </div>
 
-        <button onClick={handleSaveAI} style={{ width: '100%', padding: '10px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
+        <button onClick={handleSaveAI} style={{ width: '100%', padding: '10px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
           💾 Save AI Keys
         </button>
       </div>
@@ -582,7 +582,7 @@ export default function Settings() {
                   disabled={testingProvider === provider.id}
                   style={{
                     padding: '2px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer',
-                    background: providerStatus[provider.id]?.success ? '#28a745' : providerStatus[provider.id]?.error ? '#dc3545' : '#667eea',
+                    background: providerStatus[provider.id]?.success ? '#000' : providerStatus[provider.id]?.error ? '#cc0000' : '#000',
                     color: 'white', border: 'none'
                   }}
                 >
@@ -607,7 +607,7 @@ export default function Settings() {
 
         <button
           onClick={saveProviderSettings}
-          style={{ width: '100%', padding: '10px', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600', marginTop: '8px' }}
+          style={{ width: '100%', padding: '10px', background: '#666', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600', marginTop: '8px' }}
         >
           Save Providers
         </button>
@@ -666,7 +666,7 @@ export default function Settings() {
 
         <button
           onClick={handleSaveDiscovery}
-          style={{ width: '100%', padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
+          style={{ width: '100%', padding: '10px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}
         >
           Save Discovery Settings
         </button>

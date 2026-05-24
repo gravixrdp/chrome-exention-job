@@ -81,7 +81,7 @@ export default function QAManager() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ fontSize: '18px', fontWeight: '700' }}>Q&A Bank</h2>
-        <button onClick={addCustomQA} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
+        <button onClick={addCustomQA} style={{ padding: '8px 12px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
           ➕ Add Custom
         </button>
       </div>
@@ -92,11 +92,11 @@ export default function QAManager() {
 
       {/* Sheets Sync Section */}
       {sheetsConfigured && (
-        <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '14px', marginBottom: '16px', border: '1px solid #bae6fd' }}>
+        <div style={{ background: '#f1f1f1', borderRadius: '10px', padding: '14px', marginBottom: '16px', border: '1px solid #ddd' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#0369a1' }}>📊 Google Sheets Sync</span>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: '#333' }}>📊 Google Sheets Sync</span>
             {syncStatus && (
-              <span style={{ fontSize: '12px', color: syncStatus.includes('✅') ? '#28a745' : '#dc3545' }}>
+              <span style={{ fontSize: '12px', color: syncStatus.includes('✅') ? '#000' : '#cc0000' }}>
                 {syncStatus}
               </span>
             )}
@@ -104,13 +104,13 @@ export default function QAManager() {
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={handleLoadFromSheets}
-              style={{ flex: 1, padding: '10px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600' }}
+              style={{ flex: 1, padding: '10px', background: '#333', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600' }}
             >
               ⬇️ Load from Sheets
             </button>
             <button
               onClick={handlePushToSheets}
-              style={{ flex: 1, padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600' }}
+              style={{ flex: 1, padding: '10px', background: '#000', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600' }}
             >
               ⬆️ Push to Sheets
             </button>
@@ -128,7 +128,7 @@ export default function QAManager() {
               <div style={{ fontSize: '13px', fontWeight: '600', color: '#333' }}>
                 {qa.question}
               </div>
-              <button onClick={() => deleteQA(index)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '16px' }}>
+              <button onClick={() => deleteQA(index)} style={{ background: 'none', border: 'none', color: '#cc0000', cursor: 'pointer', fontSize: '16px' }}>
                 🗑️
               </button>
             </div>
@@ -142,7 +142,7 @@ export default function QAManager() {
         ))}
       </div>
 
-      <button onClick={handleSave} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600' }}>
+      <button onClick={handleSave} style={{ width: '100%', padding: '14px', background: '#000', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600' }}>
         💾 Save All Answers
       </button>
     </div>

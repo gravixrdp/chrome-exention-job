@@ -65,7 +65,7 @@ export default function App() {
       <div style={{
         width: '420px', height: '600px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        background: '#000'
       }}>
         <div className="spinner"></div>
       </div>
@@ -90,7 +90,7 @@ export default function App() {
     }}>
       {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#000',
         padding: '16px', color: 'white',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
@@ -131,9 +131,9 @@ export default function App() {
               flex: 1, padding: '12px 8px',
               background: currentView === nav.id ? '#f0f0f0' : 'transparent',
               border: 'none',
-              borderBottom: currentView === nav.id ? '3px solid #667eea' : '3px solid transparent',
+              borderBottom: currentView === nav.id ? '3px solid #000' : '3px solid transparent',
               fontSize: '11px', fontWeight: '600',
-              color: currentView === nav.id ? '#667eea' : '#666',
+              color: currentView === nav.id ? '#000' : '#666',
               cursor: 'pointer', transition: 'all 0.2s ease',
               whiteSpace: 'nowrap'
             }}

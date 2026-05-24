@@ -130,7 +130,7 @@ export default function JobSearch() {
             onClick={handleSearch}
             disabled={loading}
             style={{
-              padding: '10px 16px', background: '#667eea', color: 'white',
+              padding: '10px 16px', background: '#000', color: 'white',
               border: 'none', borderRadius: '8px', fontSize: '13px',
               fontWeight: '600', opacity: loading ? 0.5 : 1
             }}
@@ -143,7 +143,7 @@ export default function JobSearch() {
           onClick={handleFullDiscovery}
           disabled={loading}
           style={{
-            width: '100%', padding: '10px', background: '#28a745',
+            width: '100%', padding: '10px', background: '#000',
             color: 'white', border: 'none', borderRadius: '8px',
             fontSize: '13px', fontWeight: '600', opacity: loading ? 0.5 : 1
           }}
@@ -175,7 +175,7 @@ export default function JobSearch() {
             onClick={() => setFilter(platform)}
             style={{
               padding: '6px 12px',
-              background: filter === platform ? '#667eea' : '#f0f0f0',
+              background: filter === platform ? '#000' : '#f0f0f0',
               color: filter === platform ? 'white' : '#666',
               border: 'none', borderRadius: '16px',
               fontSize: '12px', fontWeight: '600', whiteSpace: 'nowrap'
@@ -220,7 +220,7 @@ export default function JobSearch() {
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    flex: 1, padding: '8px', background: '#667eea',
+                    flex: 1, padding: '8px', background: '#000',
                     color: 'white', textAlign: 'center', borderRadius: '6px',
                     fontSize: '12px', textDecoration: 'none'
                   }}
@@ -230,7 +230,7 @@ export default function JobSearch() {
                 <button
                   onClick={() => handleSaveJob(job)}
                   style={{
-                    padding: '8px 12px', background: '#28a745',
+                    padding: '8px 12px', background: '#000',
                     color: 'white', border: 'none', borderRadius: '6px',
                     fontSize: '12px', cursor: 'pointer'
                   }}

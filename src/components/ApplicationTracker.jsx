@@ -45,7 +45,7 @@ export default function ApplicationTracker() {
             onClick={() => setFilter(status)}
             style={{
               padding: '6px 12px',
-              background: filter === status ? '#667eea' : '#f0f0f0',
+              background: filter === status ? '#000' : '#f0f0f0',
               color: filter === status ? 'white' : '#666',
               border: 'none',
               borderRadius: '16px',
@@ -77,7 +77,7 @@ export default function ApplicationTracker() {
                     🏢 {app.company} • {app.platform}
                   </div>
                   {app.location && <div style={{ fontSize: '12px', color: '#666' }}>📍 {app.location}</div>}
-                  {app.matchScore && <div style={{ fontSize: '12px', color: '#667eea', marginTop: '4px' }}>Match: {app.matchScore}%</div>}
+                  {app.matchScore && <div style={{ fontSize: '12px', color: '#000', marginTop: '4px' }}>Match: {app.matchScore}%</div>}
                 </div>
                 <select
                   value={app.status}
@@ -93,10 +93,10 @@ export default function ApplicationTracker() {
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                <a href={app.jobUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, padding: '8px', background: '#667eea', color: 'white', textAlign: 'center', borderRadius: '6px', fontSize: '12px', textDecoration: 'none' }}>
+                <a href={app.jobUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, padding: '8px', background: '#000', color: 'white', textAlign: 'center', borderRadius: '6px', fontSize: '12px', textDecoration: 'none' }}>
                   🔗 View Job
                 </a>
-                <button onClick={() => handleDelete(app.id)} style={{ padding: '8px 12px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px' }}>
+                <button onClick={() => handleDelete(app.id)} style={{ padding: '8px 12px', background: '#cc0000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px' }}>
                   Delete
                 </button>
               </div>

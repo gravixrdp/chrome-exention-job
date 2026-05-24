@@ -41,7 +41,7 @@ export default function LoginScreen({ isSetup, onLogin, onSetup }) {
     <div style={{
       width: '420px',
       height: '600px',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: '#000',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center'
@@ -138,7 +138,7 @@ export default function LoginScreen({ isSetup, onLogin, onSetup }) {
             style={{
               width: '100%',
               padding: '14px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: '#000',
               color: 'white',
               border: 'none',
               borderRadius: '8px',

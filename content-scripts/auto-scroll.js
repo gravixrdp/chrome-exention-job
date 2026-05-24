@@ -47,7 +47,7 @@ function injectControlBar() {
   const countBadge = document.createElement('span');
   countBadge.id = 'scroll-job-count';
   countBadge.style.cssText = `
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #000;
     color: white; padding: 10px 16px; border-radius: 8px;
     font-size: 13px; font-weight: 600;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -59,7 +59,7 @@ function injectControlBar() {
   const statusBtn = document.createElement('button');
   statusBtn.id = 'scroll-status-btn';
   statusBtn.style.cssText = `
-    background: #28a745; color: white; padding: 10px 14px;
+    background: #000; color: white; padding: 10px 14px;
     border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
     cursor: pointer;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -70,7 +70,7 @@ function injectControlBar() {
   const stopBtn = document.createElement('button');
   stopBtn.id = 'scroll-stop-btn';
   stopBtn.style.cssText = `
-    background: #dc3545; color: white; padding: 10px 14px;
+    background: #cc0000; color: white; padding: 10px 14px;
     border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
     cursor: pointer;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -148,7 +148,7 @@ function toggleScroll() {
   const btn = document.getElementById('scroll-status-btn');
   if (btn) {
     btn.textContent = isScrolling ? '⏸ Pause' : '▶ Resume';
-    btn.style.background = isScrolling ? '#28a745' : '#ffc107';
+    btn.style.background = isScrolling ? '#000' : '#888';
   }
 }
 
@@ -181,7 +181,7 @@ function notifyComplete() {
   const btn = document.getElementById('scroll-status-btn');
   if (btn) {
     btn.textContent = '✅ Done';
-    btn.style.background = '#17a2b8';
+    btn.style.background = '#666';
     btn.style.display = 'none';
   }
 }

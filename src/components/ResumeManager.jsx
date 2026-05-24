@@ -52,7 +52,7 @@ export default function ResumeManager() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ fontSize: '18px', fontWeight: '700' }}>Resume Manager</h2>
-        <button onClick={addResume} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
+        <button onClick={addResume} style={{ padding: '8px 12px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
           ➕ Add Resume
         </button>
       </div>
@@ -82,11 +82,11 @@ export default function ResumeManager() {
                 </div>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   {!resume.isDefault && (
-                    <button onClick={() => setDefault(resume.id)} style={{ padding: '6px 10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px' }}>
+                    <button onClick={() => setDefault(resume.id)} style={{ padding: '6px 10px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px' }}>
                       Set Default
                     </button>
                   )}
-                  <button onClick={() => deleteResume(resume.id)} style={{ padding: '6px 10px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px' }}>
+                  <button onClick={() => deleteResume(resume.id)} style={{ padding: '6px 10px', background: '#cc0000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px' }}>
                     Delete
                   </button>
                 </div>

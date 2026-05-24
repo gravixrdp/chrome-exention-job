@@ -161,13 +161,13 @@ export default function ProfileManager() {
                 placeholder="Add skill"
                 style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
               />
-              <button type="button" onClick={addSkill} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px' }}>Add</button>
+              <button type="button" onClick={addSkill} style={{ padding: '8px 12px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px' }}>Add</button>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {profile.skills.map(skill => (
-                <span key={skill} style={{ background: '#e7eaf6', color: '#667eea', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span key={skill} style={{ background: '#f0f0f0', color: '#000', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   {skill}
-                  <button type="button" onClick={() => removeSkill(skill)} style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px' }}>×</button>
+                  <button type="button" onClick={() => removeSkill(skill)} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '14px' }}>×</button>
                 </span>
               ))}
             </div>
@@ -222,13 +222,13 @@ export default function ProfileManager() {
                 placeholder="Add role"
                 style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
               />
-              <button type="button" onClick={addRole} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px' }}>Add</button>
+              <button type="button" onClick={addRole} style={{ padding: '8px 12px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px' }}>Add</button>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {profile.preferredRoles.map(role => (
-                <span key={role} style={{ background: '#e7eaf6', color: '#667eea', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span key={role} style={{ background: '#f0f0f0', color: '#000', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   {role}
-                  <button type="button" onClick={() => removeRole(role)} style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px' }}>×</button>
+                  <button type="button" onClick={() => removeRole(role)} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '14px' }}>×</button>
                 </span>
               ))}
             </div>
@@ -245,13 +245,13 @@ export default function ProfileManager() {
                 placeholder="Add location"
                 style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
               />
-              <button type="button" onClick={addLocation} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px' }}>Add</button>
+              <button type="button" onClick={addLocation} style={{ padding: '8px 12px', background: '#000', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px' }}>Add</button>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {profile.preferredLocations.map(loc => (
-                <span key={loc} style={{ background: '#e7eaf6', color: '#667eea', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span key={loc} style={{ background: '#f0f0f0', color: '#000', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   {loc}
-                  <button type="button" onClick={() => removeLocation(loc)} style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: '14px' }}>×</button>
+                  <button type="button" onClick={() => removeLocation(loc)} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '14px' }}>×</button>
                 </span>
               ))}
             </div>
@@ -279,7 +279,7 @@ export default function ProfileManager() {
           style={{
             width: '100%',
             padding: '14px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: 'linear-gradient(135deg, #000 0%, #764ba2 100%)',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
