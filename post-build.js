@@ -33,19 +33,12 @@ copyRecursive(
   path.join(distDir, 'assets')
 );
 
-// Copy background.js
-fs.copyFileSync(
-  path.join(__dirname, 'background.js'),
-  path.join(distDir, 'background.js')
-);
+// Background.js — Vite already bundles it into dist/background.js.
+// Do NOT overwrite with source (dynamic imports would break in dist).
 
-// Copy popup HTML
-const popupDir = path.join(distDir, 'popup');
-fs.mkdirSync(popupDir, { recursive: true });
-fs.copyFileSync(
-  path.join(__dirname, 'popup', 'popup.html'),
-  path.join(popupDir, 'popup.html')
-);
+// Copy popup HTML — Vite already processes popup.html into dist/popup/popup.html
+// Do NOT overwrite with source version (script src would point to non-existent src/popup.jsx)
+// The Vite-processed popup.html has the correct bundled script reference.
 
 // Organize content scripts into content-scripts/ subdirectory
 const contentScriptsDir = path.join(distDir, 'content-scripts');
