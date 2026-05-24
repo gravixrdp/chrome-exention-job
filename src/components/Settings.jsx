@@ -114,7 +114,7 @@ export default function Settings() {
             messages: [
               { role: 'user', content: providerId === 'openrouter' ? 'Reply to this test message with a short greeting.' : 'hy' }
             ],
-            max_tokens: 30
+            max_tokens: 100
           })
         }
       );
@@ -124,10 +124,14 @@ export default function Settings() {
         setAiStatus(prev => ({ ...prev, [providerId]: { error: `${res.status} — ${text.substring(0, 100)}` } }));
       } else {
         const data = await res.json();
-        const reply = providerId === 'openrouter'
-          ? data?.choices?.[0]?.message?.content
-          : (data.content || []).find(c => c.type === 'text')?.text;
-        setAiStatus(prev => ({ ...prev, [providerId]: { success: true, reply: reply || '(empty response)' } }));
+        let reply;
+        if (providerId === 'openrouter') {
+          reply = data?.choices?.[0]?.message?.content;
+        } else {
+          const textBlock = (data.content || []).find(c => c.type === 'text');
+          reply = textBlock?.text || (data.content || []).find(c => c.type === 'thinking')?.thinking || '(empty response)';
+        }
+        setAiStatus(prev => ({ ...prev, [providerId]: { success: true, reply } }));
       }
     } catch (error) {
       setAiStatus(prev => ({ ...prev, [providerId]: { error: error.message } }));
